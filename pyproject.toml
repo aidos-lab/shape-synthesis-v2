@@ -1,0 +1,27 @@
+[project]
+name = "example-pkg"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10.12"
+dependencies = [
+    "dect",
+    "matplotlib>=3.10.3",
+    "pyyaml>=6.0.2",
+    "torch>=2.7.0",
+    "torchvision>=0.22.0",
+]
+
+[project.scripts]
+train = "shape_synthesis.train:main"
+evaluate = "shape_synthesis.evaluate:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["shape_synthesis"]
+
+[tool.uv.sources]
+dect = { git = "https://github.com/aidos-lab/dect.git" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

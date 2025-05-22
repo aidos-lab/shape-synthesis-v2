@@ -1,2 +1,13 @@
-# shape-synthesis-v2
-Generating shapes with Euler Characteristic Transforms. 
+# Installation
+
+
+```shell
+uv sync
+```
+
+
+# Run the train script 
+
+```shell
+uv run train
+```
