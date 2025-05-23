@@ -9,6 +9,7 @@ dependencies = [
     "ipykernel>=6.29.5",
     "matplotlib>=3.10.3",
     "pyyaml>=6.0.2",
+    "tensorboard>=2.19.0",
     "torch>=2.7.0",
     "torchvision>=0.22.0",
 ]
