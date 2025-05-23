@@ -1,3 +1,8 @@
+# Shape Synthesis 
+
+Reimplementation of the previous code base. 
+
+
 # Installation
 
 
