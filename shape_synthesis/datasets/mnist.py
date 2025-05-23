@@ -21,11 +21,13 @@ def sample_point_cloud_from_image(dataset, config: DataConfig, dev: bool = False
     num_tries = 10
     # Transform the train set.
     full_point_cloud = torch.empty(size=(len(dataset), config.num_pts, 2))
+    imgs = torch.empty(size=(len(dataset), 28, 28))
     for idx, (img, _) in enumerate(dataset):
         if dev and idx > 64:
             break
 
         img = img.squeeze()
+        imgs[idx] = img
         # Transform so the point cloud is with the "right side up".
         img = torch.rot90(img.flipud(), 3)
 
@@ -46,7 +48,7 @@ def sample_point_cloud_from_image(dataset, config: DataConfig, dev: bool = False
                 print(idx, "Num tries left", num_tries - i)
                 if i == num_tries - 1:
                     raise ValueError()
-    return full_point_cloud
+    return full_point_cloud, imgs
 
 
 def create_dataset(config: DataConfig, dev: bool = False):
@@ -70,11 +72,17 @@ def create_dataset(config: DataConfig, dev: bool = False):
         mnist_train = torch.utils.data.Subset(mnist_train, torch.arange(0, 64))
         mnist_test = torch.utils.data.Subset(mnist_test, torch.arange(0, 64))
 
-    train_point_cloud = sample_point_cloud_from_image(mnist_train, config=config)
-    test_point_cloud = sample_point_cloud_from_image(mnist_test, config=config)
+    train_point_cloud, train_imgs = sample_point_cloud_from_image(
+        mnist_train, config=config
+    )
+    test_point_cloud, test_imgs = sample_point_cloud_from_image(
+        mnist_test, config=config
+    )
 
     torch.save(train_point_cloud, f"{path}/train.pt")
     torch.save(test_point_cloud, f"{path}/test.pt")
+    torch.save(train_imgs, f"{path}/train_imgs.pt")
+    torch.save(test_imgs, f"{path}/test_imgs.pt")
 
     save_config(config=config, path=f"{path}/config.yaml")
 
@@ -86,10 +94,12 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
     path = f"{config.root}/mnist/{dataset_type}"
 
     train_point_cloud = torch.load(f"{path}/train.pt")
+    train_imgs = torch.load(f"{path}/train_imgs.pt")
     test_point_cloud = torch.load(f"{path}/test.pt")
+    test_imgs = torch.load(f"{path}/test_imgs.pt")
 
-    train_ds = torch.utils.data.TensorDataset(train_point_cloud)
-    test_ds = torch.utils.data.TensorDataset(test_point_cloud)
+    train_ds = torch.utils.data.TensorDataset(train_point_cloud, train_imgs)
+    test_ds = torch.utils.data.TensorDataset(test_point_cloud, test_imgs)
 
     train_dl = torch.utils.data.DataLoader(
         train_ds,
@@ -117,8 +127,8 @@ if __name__ == "__main__":
         module="datasets.mnist",
         batch_size=32,
     )
-    create_dataset(config, dev=True)
-    create_dataset(config, dev=False)
+    # create_dataset(config, dev=True)
+    # create_dataset(config, dev=False)
 
     # print(72 * "=")
     # print("Data Configuration")

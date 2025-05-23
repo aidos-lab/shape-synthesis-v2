@@ -4,12 +4,10 @@ from torch import nn
 
 
 class VAE(nn.Module):
-    def __init__(self):
+    def __init__(self, in_dim=28, hidden_dim=400, latent_dim=200):
         super().__init__()
-        latent_dim = 200
-        hidden_dim = 400
-        input_dim = 784
-        output_dim = 784
+        input_dim = in_dim * in_dim
+        output_dim = in_dim * in_dim
 
         # Encoder
         self.FC_input = nn.Linear(input_dim, hidden_dim)
