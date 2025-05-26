@@ -28,13 +28,13 @@ class UnFlatten(nn.Module):
 
 
 class ConvVAE(nn.Module):
-    def __init__(self, device="cuda", img_channels=1, args=None):
+    def __init__(self, img_channels, model_str, batch_size, device):
         super().__init__()
-        self.batch_size = args.batch_size
+        self.batch_size = batch_size
         self.device = device
         self.z_dim = 10
         self.img_channels = img_channels
-        self.model = args.model
+        self.model = model_str
         img_size = 28
         filters_m = 32
 
@@ -58,7 +58,7 @@ class ConvVAE(nn.Module):
         if self.model == "sigma_vae":
             ## Sigma VAE
             self.log_sigma = torch.nn.Parameter(
-                torch.full((1,), 0.0)[0], requires_grad=args.model == "sigma_vae"
+                torch.full((1,), 0.0)[0], requires_grad=model_str == "sigma_vae"
             )
 
     @staticmethod

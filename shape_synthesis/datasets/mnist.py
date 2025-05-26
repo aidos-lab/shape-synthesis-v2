@@ -61,8 +61,12 @@ def create_dataset(config: DataConfig, dev: bool = False):
 
     path = f"{config.root}/mnist/{dataset_type}"
     raw_path = f"{config.raw}/mnist"
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    os.makedirs(os.path.dirname(raw_path), exist_ok=True)
+    print(dataset_type)
+    print("Creating:",os.path.dirname(path))
+    print("Creating:",os.path.dirname(raw_path))
+    
+    os.makedirs(path, exist_ok=True)
+    os.makedirs(raw_path, exist_ok=True)
 
     # Download the full MNIST dataset.
     mnist_train = MNIST(root=raw_path, transform=ToTensor(), train=True, download=True)

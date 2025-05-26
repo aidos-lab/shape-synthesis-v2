@@ -8,6 +8,7 @@ class VAE(nn.Module):
         super().__init__()
         input_dim = in_dim * in_dim
         output_dim = in_dim * in_dim
+        self.latent_dim = latent_dim
 
         # Encoder
         self.FC_input = nn.Linear(input_dim, hidden_dim)
@@ -42,12 +43,16 @@ class VAE(nn.Module):
         z = mean + var * epsilon  # reparameterization trick
         return z
 
+    def sample(self, n):
+        sample = torch.randn(n, self.latent_dim, device="cuda")
+        return self.forward_decoder(sample).view(-1, 1, 28, 28)
+
     def forward(self, x):
         mean, log_var = self.forward_encoder(x.flatten(start_dim=1))
         z = self.reparameterization(
             mean, torch.exp(0.5 * log_var)
         )  # takes exponential function (log var -> var)
-        x_hat = self.forward_decoder(z)
+        x_hat = self.forward_decoder(z).view(-1, 1, 28, 28)
 
         return x_hat, mean, log_var
 

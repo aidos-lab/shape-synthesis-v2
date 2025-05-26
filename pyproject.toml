@@ -7,6 +7,7 @@ requires-python = ">=3.10.12"
 dependencies = [
     "dect",
     "ipykernel>=6.29.5",
+    "lightning>=2.5.1.post0",
     "matplotlib>=3.10.3",
     "pyyaml>=6.0.2",
     "tensorboard>=2.19.0",
