@@ -11,6 +11,7 @@ from shape_synthesis.datasets.mnist import DataConfig, get_dataloaders
 from shape_synthesis.metrics.losses import vanilla_loss_function as loss_function
 from shape_synthesis.models.sigma_vae import ConvVAE
 from shape_synthesis.models.vae import VAE
+from torchmetrics.image.fid import FrechetInceptionDistance
 
 """ This script is an example of Sigma VAE training in PyTorch. The code was adapted from:
 https://github.com/pytorch/examples/blob/master/vae/main.py """
@@ -55,6 +56,7 @@ def main():
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
     for epoch in range(1, train_config.epochs + 1):
+        print("Epoch ", epoch)
         train(
             epoch,
             model,
@@ -99,6 +101,7 @@ def train(epoch, model, train_loader, optimizer, logger):
 
 
 def test(epoch, model, test_loader, logger, batch_size):
+    fid = FrechetInceptionDistance(feature=64,input_img_size = (1,128,128),normalize=True).cuda()
     model.eval()
     test_loss = 0
     with torch.no_grad():
@@ -107,6 +110,8 @@ def test(epoch, model, test_loader, logger, batch_size):
             recon_batch, mu, logvar = model(data)
             # Pass the second value from posthoc VAE
             rec, kl = loss_function(recon_batch, data, mu, logvar)
+            fid.update(data.repeat(1,3,1,1), real=True)
+            fid.update(recon_batch.repeat(1,3,1,1), real=False)
             test_loss += rec + kl
             if i == 0:
                 n = min(data.size(0), 8)
@@ -122,87 +127,5 @@ def test(epoch, model, test_loader, logger, batch_size):
         logger.experiment.add_images(
             "Sample", sample, global_step=epoch, dataformats="NCHW"
         )
-    logger.log_metrics({"test/elbo": test_loss}, epoch)
+    logger.log_metrics({"test/elbo": test_loss,"test/fid":fid.compute()}, epoch)
 
-
-# def main():
-#     epochs = 30
-#     device = "cuda"
-#     config = DataConfig(
-#         root="./data",
-#         raw="./data/raw",
-#         num_pts=256,
-#         module="datasets.mnist",
-#         batch_size=100,
-#     )
-#     train_dataloader, test_dataloader = get_dataloaders(config, dev=False)
-#     model = VAE(in_dim=IMG_SIZE, hidden_dim=HIDDEN_DIM, latent_dim=LATENT_DIM).to(
-#         device
-#     )
-#     optimizer = Adam(model.parameters(), lr=1e-3)
-#
-#     ect_config = EctConfig(
-#         num_thetas=28,
-#         resolution=28,
-#         r=3,
-#         scale=14,
-#         ect_type="points",
-#         ambient_dimension=2,
-#         normalized=True,
-#         seed=2011,
-#     )
-#
-#     ect_transform = EctTransform(config=ect_config, device=device)
-#     resize_transform = Resize(size=IMG_SIZE)
-#
-#     print("Start training VAE...")
-#     model.train()
-#     for epoch in range(epochs):
-#         overall_loss = 0
-#         for batch_idx, (x, imgs) in enumerate(train_dataloader):
-#
-#             x = imgs.to(device)
-#             x = resize_transform(x).flatten(start_dim=1)
-#
-#             # x = ect_transform(x.to(device)).flatten(start_dim=1)
-#
-#             optimizer.zero_grad()
-#
-#             x_hat, mean, log_var = model(x)
-#             loss = loss_function(x, x_hat, mean, log_var)
-#
-#             overall_loss += loss.item()
-#
-#             loss.backward()
-#             optimizer.step()
-#
-#         print(
-#             "\tEpoch",
-#             epoch + 1,
-#             "complete!",
-#             "\tAverage Loss: ",
-#             overall_loss / (batch_idx * config.batch_size),
-#         )
-#
-#     print("Finish!!")
-#
-#     model.eval()
-#     with torch.no_grad():
-#         for batch_idx, (x, imgs) in enumerate(test_dataloader):
-#             # x = ect_transform(x.to(device)).flatten(start_dim=1)
-#             x = imgs.to(device)
-#             x = resize_transform(x).flatten(start_dim=1)
-#             x_hat, _, _ = model(x)
-#             show_image(x, idx=0)
-#             show_image(x_hat, idx=0)
-#             break
-#
-#     model.eval()
-#     with torch.no_grad():
-#         noise = torch.randn(config.batch_size, LATENT_DIM)
-#         generated_images = model.forward_decoder(noise.to(device))
-#         show_image(generated_images, idx=0)
-#         save_image(
-#             generated_images.view(config.batch_size, 1, IMG_SIZE, IMG_SIZE),
-#             "generated_sample.png",
-#         )

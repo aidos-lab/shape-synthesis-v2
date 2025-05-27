@@ -27,9 +27,9 @@ def sample_point_cloud_from_image(dataset, config: DataConfig, dev: bool = False
             break
 
         img = img.squeeze()
-        imgs[idx] = img
+        img = torch.rot90(img, 3)
         # Transform so the point cloud is with the "right side up".
-        img = torch.rot90(img.flipud(), 3)
+        
 
         point_cloud = torch.empty(size=(config.num_pts, 2))
         for i in range(num_tries):
@@ -48,6 +48,13 @@ def sample_point_cloud_from_image(dataset, config: DataConfig, dev: bool = False
                 print(idx, "Num tries left", num_tries - i)
                 if i == num_tries - 1:
                     raise ValueError()
+        
+        # Transform to get the image displayed correctly. 
+        imgs[idx] = torch.rot90(img, 1)
+        
+    # Center the point cloud around [-1,1]^2
+    full_point_cloud = 2 * full_point_cloud - 1
+        
     return full_point_cloud, imgs
 
 
@@ -131,8 +138,8 @@ if __name__ == "__main__":
         module="datasets.mnist",
         batch_size=32,
     )
-    # create_dataset(config, dev=True)
-    # create_dataset(config, dev=False)
+    create_dataset(config, dev=True)
+    create_dataset(config, dev=False)
 
     # print(72 * "=")
     # print("Data Configuration")
