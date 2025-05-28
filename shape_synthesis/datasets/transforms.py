@@ -2,16 +2,35 @@
 All transforms for the datasets.
 """
 
+from dataclasses import dataclass
 from functools import partial
 from typing import Literal
 
 import numpy as np
 import torch
 import torchvision
-from dect.directions import generate_uniform_directions, generate_2d_directions
+from dect.directions import generate_2d_directions, generate_uniform_directions
 from dect.ect import compute_ect_point_cloud
 from dect.nn import EctConfig
 from torchvision.transforms import Compose
+
+
+def get_transform(compiled: bool = False):
+    return EctTransform(
+        config=EctConfig(
+            num_thetas=28,
+            resolution=28,
+            r=1.1,
+            scale=7,
+            ect_type="points",
+            ambient_dimension=2,
+            normalized=True,
+            seed=2013,
+        ),
+        structured_directions=True,
+        device="cuda",
+        compiled=compiled,
+    )
 
 
 class FixedLength:
@@ -31,31 +50,26 @@ class FixedLength:
 
 
 class EctTransform:
-    def __init__(self, config: EctConfig, structured_directions: bool=True, device="cpu"):
+    def __init__(
+        self,
+        config: EctConfig,
+        structured_directions: bool = True,
+        device: str = "cpu",
+        compiled: bool = False,
+    ):
         self.config = config
-        if structured_directions: 
+        if structured_directions:
+            self.v = generate_2d_directions(
+                config.num_thetas,
+            ).to(device)
+        else:
             self.v = generate_uniform_directions(
                 config.num_thetas,
                 d=config.ambient_dimension,
                 seed=config.seed,
+                normalize=True,
                 device=device,
             )
-        else:
-            self.v = generate_2d_directions(
-                config.num_thetas,
-                d=config.ambient_dimension,
-                seed=config.seed,
-                device=device,
-            )
-        # self.ect_fn = torch.compile(
-        #     partial(
-        #         compute_ect_point_cloud,
-        #         v=self.v,
-        #         radius=self.config.r,
-        #         resolution=self.config.resolution,
-        #         scale=self.config.scale,
-        #     )
-        # )
         self.ect_fn = partial(
             compute_ect_point_cloud,
             v=self.v,
@@ -64,6 +78,8 @@ class EctTransform:
             scale=self.config.scale,
             normalize=True,
         )
+        if compiled:
+            self.ect_fn = torch.compile(self.ect_fn)
 
     def __call__(self, x):
         return self.ect_fn(x)

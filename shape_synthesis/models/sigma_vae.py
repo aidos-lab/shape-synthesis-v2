@@ -36,7 +36,7 @@ class ConvVAE(nn.Module):
         self.img_channels = img_channels
         self.model = model_str
         img_size = 28
-        filters_m = 32
+        filters_m = 64
 
         ## Build network
         self.encoder = self.get_encoder(self.img_channels, filters_m)
@@ -136,10 +136,7 @@ class ConvVAE(nn.Module):
     def loss_function(self, recon_x, x, mu, logvar):
         # Important: both reconstruction and KL divergence loss have to be summed over all element!
         # Here we also sum the over batch and divide by the number of elements in the data later
-        if self.model == "mse_vae":
-            rec = torch.nn.MSELoss()(recon_x, x)
-        else:
-            rec = self.reconstruction_loss(recon_x, x)
+        rec = self.reconstruction_loss(recon_x, x)
 
         # see Appendix B from VAE paper:
         # Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014

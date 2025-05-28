@@ -17,19 +17,16 @@ class DataConfig:
     batch_size: int
 
 
-def sample_point_cloud_from_image(dataset, config: DataConfig, dev: bool = False):
+def sample_point_cloud_from_image(dataset, config: DataConfig):
     num_tries = 10
     # Transform the train set.
     full_point_cloud = torch.empty(size=(len(dataset), config.num_pts, 2))
     imgs = torch.empty(size=(len(dataset), 28, 28))
     for idx, (img, _) in enumerate(dataset):
-        if dev and idx > 64:
-            break
 
+        # Transform so the point cloud is with the "right side up".
         img = img.squeeze()
         img = torch.rot90(img, 3)
-        # Transform so the point cloud is with the "right side up".
-        
 
         point_cloud = torch.empty(size=(config.num_pts, 2))
         for i in range(num_tries):
@@ -48,13 +45,13 @@ def sample_point_cloud_from_image(dataset, config: DataConfig, dev: bool = False
                 print(idx, "Num tries left", num_tries - i)
                 if i == num_tries - 1:
                     raise ValueError()
-        
-        # Transform to get the image displayed correctly. 
+
+        # Transform to get the image displayed correctly.
         imgs[idx] = torch.rot90(img, 1)
-        
+
     # Center the point cloud around [-1,1]^2
     full_point_cloud = 2 * full_point_cloud - 1
-        
+
     return full_point_cloud, imgs
 
 
@@ -69,9 +66,9 @@ def create_dataset(config: DataConfig, dev: bool = False):
     path = f"{config.root}/mnist/{dataset_type}"
     raw_path = f"{config.raw}/mnist"
     print(dataset_type)
-    print("Creating:",os.path.dirname(path))
-    print("Creating:",os.path.dirname(raw_path))
-    
+    print("Creating:", os.path.dirname(path))
+    print("Creating:", os.path.dirname(raw_path))
+
     os.makedirs(path, exist_ok=True)
     os.makedirs(raw_path, exist_ok=True)
 
@@ -117,7 +114,7 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=0,
-        drop_last=True,
+        drop_last=True if not dev else False,
     )
 
     test_dl = torch.utils.data.DataLoader(
@@ -136,10 +133,10 @@ if __name__ == "__main__":
         raw="./data/raw",
         num_pts=256,
         module="datasets.mnist",
-        batch_size=32,
+        batch_size=64,
     )
     create_dataset(config, dev=True)
-    create_dataset(config, dev=False)
+    # create_dataset(config, dev=False)
 
     # print(72 * "=")
     # print("Data Configuration")
