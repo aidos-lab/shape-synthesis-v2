@@ -2,24 +2,20 @@
 All transforms for the datasets.
 """
 
-from dataclasses import dataclass
 from functools import partial
-from typing import Literal
 
 import numpy as np
 import torch
-import torchvision
 from dect.directions import generate_2d_directions, generate_uniform_directions
 from dect.ect import compute_ect_point_cloud
 from dect.nn import EctConfig
-from torchvision.transforms import Compose
 
 
 def get_transform(compiled: bool = False):
     return EctTransform(
         config=EctConfig(
-            num_thetas=28,
-            resolution=28,
+            num_thetas=32,
+            resolution=32,
             r=1.1,
             scale=7,
             ect_type="points",
@@ -27,7 +23,7 @@ def get_transform(compiled: bool = False):
             normalized=True,
             seed=2013,
         ),
-        structured_directions=True,
+        structured_directions=False,
         device="cuda",
         compiled=compiled,
     )
@@ -67,7 +63,6 @@ class EctTransform:
                 config.num_thetas,
                 d=config.ambient_dimension,
                 seed=config.seed,
-                normalize=True,
                 device=device,
             )
         self.ect_fn = partial(

@@ -136,7 +136,7 @@ if __name__ == "__main__":
         batch_size=64,
     )
     create_dataset(config, dev=True)
-    # create_dataset(config, dev=False)
+    create_dataset(config, dev=False)
 
     # print(72 * "=")
     # print("Data Configuration")

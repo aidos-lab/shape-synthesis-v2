@@ -3,17 +3,19 @@ name = "example-pkg"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10.12"
+requires-python = "~=3.10.12"
 dependencies = [
     "dect",
+    "kaolin",
     "ipykernel>=6.29.5",
+    "kaolin>=0.1",
     "lightning>=2.5.1.post0",
     "matplotlib>=3.10.3",
+    "pip>=25.1.1",
     "pyyaml>=6.0.2",
     "tensorboard>=2.19.0",
-    "torch>=2.7.0",
+    "torch~=2.5.1",
     "torch-fidelity>=0.3.0",
-    "torchvision>=0.22.0",
 ]
 
 [project.scripts]
@@ -23,9 +25,23 @@ evaluate = "shape_synthesis.evaluate:main"
 [tool.hatch.build.targets.wheel]
 packages = ["shape_synthesis"]
 
+[[tool.uv.index]]
+name = "kaolin-source"
+url = "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/index.html"
+explicit = true
+
 [tool.uv.sources]
 dect = { git = "https://github.com/aidos-lab/dect.git" }
+kaolin = { url = "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.5.1_cu124/kaolin-0.17.0-cp310-cp310-linux_x86_64.whl" }
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+
+[tool.pyright]
+strict = ["strec"]
+ignore = ["tests"]
+venvPath = "."
+venv = ".venv"
+

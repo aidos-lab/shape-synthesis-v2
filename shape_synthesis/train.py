@@ -13,6 +13,7 @@ from shape_synthesis.datasets.transforms import get_transform
 from shape_synthesis.metrics.losses import vanilla_loss_function as loss_function
 from shape_synthesis.models.sigma_vae import ConvVAE
 from shape_synthesis.models.vae import VAE
+from shape_synthesis.metrics.loss import chamfer3DECT
 
 """ This script is an example of Sigma VAE training in PyTorch. The code was adapted from:
 https://github.com/pytorch/examples/blob/master/vae/main.py """
@@ -22,13 +23,13 @@ DEVICE = "cuda"
 
 @dataclass
 class TrainConfig:
-    epochs = 200
+    epochs = 10
 
 
 @dataclass
 class LogConfig:
     log_dir: str = "base_vae"
-    model_str: str = "optimal_sigma_vae"
+    model_str: str = "sigma_vae"
     log_interval: int = 10
 
 
@@ -46,7 +47,7 @@ def main():
 
     train_loader, test_loader = get_dataloaders(config=data_config, dev=False)
 
-    transform = get_transform(compiled=True)
+    transform = get_transform(compiled=False)
 
     # Logger
     logger = TensorBoardLogger(
@@ -68,7 +69,8 @@ def main():
             transform,
             logger=logger,
         )
-        test(epoch, model, train_loader, transform, logger, data_config.batch_size)
+        # if (epoch % 10 == 0):
+        test(epoch, model, test_loader, transform, logger, data_config.batch_size)
     torch.save(
         model.state_dict(),
         "vae_logs/{}/checkpoint_{}.pt".format(log_config.log_dir, str(epoch)),
@@ -81,9 +83,9 @@ def train(epoch, model, train_loader, optimizer, transform, logger):
     for batch_idx, (pcs, imgs) in enumerate(train_loader):
         imgs = imgs.unsqueeze(1).to(DEVICE)
 
-        # # Transform the point cloud to an ECT.
-        # imgs = transform(pcs.to(DEVICE))
-        # imgs = imgs.unsqueeze(1).cuda()
+        # Transform the point cloud to an ECT.
+        imgs = transform(pcs.to(DEVICE))
+        imgs = imgs.unsqueeze(1).cuda()
 
         optimizer.zero_grad()
 
@@ -110,25 +112,40 @@ def train(epoch, model, train_loader, optimizer, transform, logger):
 
 
 def test(epoch, model, test_loader, transform, logger, batch_size):
-    fid = FrechetInceptionDistance(
+    fid_rec = FrechetInceptionDistance(
+        feature=64, input_img_size=(1, 128, 128), normalize=True
+    ).cuda()
+    fid_sample = FrechetInceptionDistance(
         feature=64, input_img_size=(1, 128, 128), normalize=True
     ).cuda()
     model.eval()
     test_loss = 0
+    kl_loss = 0
+    rec_loss = 0
     with torch.no_grad():
         for i, (pcs, imgs) in enumerate(test_loader):
             imgs = imgs.unsqueeze(1).to(DEVICE)
 
-            # # Transform the point cloud to an ECT.
-            # imgs = transform(pcs.to(DEVICE))
-            # imgs = imgs.unsqueeze(1).cuda()
+            # Transform the point cloud to an ECT.
+            imgs = transform(pcs.to(DEVICE))
+            imgs = imgs.unsqueeze(1).cuda()
 
             recon_batch, mu, logvar = model(imgs)
             # Pass the second value from posthoc VAE
             rec, kl = model.loss_function(recon_batch, imgs, mu, logvar)
-            fid.update(imgs.repeat(1, 3, 1, 1), real=True)
-            fid.update(recon_batch.repeat(1, 3, 1, 1), real=False)
+
+            sample = model.sample(len(imgs))
+
+            fid_rec.update(imgs.repeat(1, 3, 1, 1), real=True)
+            fid_rec.update(recon_batch.repeat(1, 3, 1, 1), real=False)
+
+            fid_sample.update(imgs.repeat(1, 3, 1, 1), real=True)
+            fid_sample.update(sample.repeat(1, 3, 1, 1), real=False)
+
+            rec_loss += rec
+            kl_loss += kl
             test_loss += rec + kl
+
             if i == 0:
                 n = min(imgs.size(0), 8)
                 comparison = torch.cat(
@@ -137,10 +154,23 @@ def test(epoch, model, test_loader, transform, logger, batch_size):
                 logger.experiment.add_images(
                     "Reconstruction", comparison, global_step=epoch, dataformats="NCHW"
                 )
+                logger.experiment.add_images(
+                    "Sample", sample, global_step=epoch, dataformats="NCHW"
+                )
     test_loss /= len(test_loader.dataset)
-    with torch.no_grad():
-        sample = model.sample(64).cpu()
-        logger.experiment.add_images(
-            "Sample", sample, global_step=epoch, dataformats="NCHW"
-        )
-    logger.log_metrics({"test/elbo": test_loss, "test/fid": fid.compute()}, epoch)
+    # rec_loss /= len(test_loader.dataset)
+    # kl_loss /= len(test_loader.dataset)
+    logger.log_metrics(
+        {
+            "test/elbo": test_loss,
+            "test/rec": rec_loss,
+            "test/kld": kl_loss,
+            "test/fid_rec": fid_rec.compute(),
+            "test/fid_sample": fid_sample.compute(),
+        },
+        epoch,
+    )
+
+
+if __name__ == "__main__":
+    main()
