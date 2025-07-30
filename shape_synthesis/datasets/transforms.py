@@ -11,20 +11,20 @@ from dect.ect import compute_ect_point_cloud
 from dect.nn import EctConfig
 
 
-def get_transform(compiled: bool = False):
+def get_transform(compiled: bool = False, device: str = "cuda", resolution: int = 32, num_thetas: int = 32, normalized: bool = True, structured_directions: bool = False, ambient_dimension: int = 2):
     return EctTransform(
         config=EctConfig(
-            num_thetas=32,
-            resolution=32,
+            num_thetas=num_thetas,
+            resolution=resolution,
             r=1.1,
             scale=7,
             ect_type="points",
-            ambient_dimension=2,
-            normalized=True,
+            ambient_dimension=ambient_dimension,
+            normalized=normalized,
             seed=2013,
         ),
-        structured_directions=False,
-        device="cuda",
+        structured_directions=structured_directions,
+        device=device,
         compiled=compiled,
     )
 
