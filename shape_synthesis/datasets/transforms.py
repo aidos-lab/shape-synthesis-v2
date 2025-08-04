@@ -11,13 +11,13 @@ from dect.ect import compute_ect_point_cloud
 from dect.nn import EctConfig
 
 
-def get_transform(compiled: bool = False, device: str = "cuda", resolution: int = 32, num_thetas: int = 32, normalized: bool = True, structured_directions: bool = False, ambient_dimension: int = 2):
+def get_transform(compiled: bool = False, device: str = "cuda", resolution: int = 32, num_thetas: int = 32, normalized: bool = True, structured_directions: bool = False, ambient_dimension: int = 2,scale: float = 100):
     return EctTransform(
         config=EctConfig(
             num_thetas=num_thetas,
             resolution=resolution,
             r=1.1,
-            scale=7,
+            scale=scale,
             ect_type="points",
             ambient_dimension=ambient_dimension,
             normalized=normalized,

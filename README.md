@@ -1,6 +1,6 @@
 # Shape Synthesis 
 
-Reimplementation of the previous code base. 
+Example implementation of the shape synthesis paper using the mnist dataset.
 
 
 # Installation
@@ -9,6 +9,16 @@ Reimplementation of the previous code base.
 ```shell
 uv sync
 ```
+
+# Prepare the data 
+
+This has to be ran before training the model.
+
+
+```shell
+uv run shape_synthesis/datasets/mnist.py
+```
+
 
 
 # Run the train script 
