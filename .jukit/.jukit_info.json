@@ -1,0 +1,1 @@
+{"cmd": "\n\n# Create a PyVista grid\ngrid = pv.StructuredGrid(*np.meshgrid(x, y, z, indexing=\"ij\"))\ngrid[\"Density\"] = density.ravel()\n# Plot the density function\nplotter = pv.Plotter()\nplotter.add_volume(grid, scalars=\"Density\", cmap=\"viridis\", opacity=\"sigmoid\")\nplotter.show()", "cmd_opts": " --cell_id=IvZkO7WzGZ -s", "import_complete": 1, "terminal": "nvimterm"}

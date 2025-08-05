@@ -1,1 +1,1 @@
-{"cmd": "\nei\n", "cmd_opts": " --cell_id=mJdgsNu6CP -s", "import_complete": 1, "terminal": "nvimterm"}
+{"cmd": "\nrecon_plot = recon.clone()\nrecon_plot /= recon_plot.max()\n\nrecon_plot[recon_plot < 0.75] = 0.0\n\n# Create a PyVista grid\nplotter = pv.Plotter()\nplotter.add_volume(recon_plot.cpu().numpy(), cmap=\"viridis\", opacity=\"sigmoid\")\nplotter.add_points(points=(x.numpy() + 1) * (NUM_STEPS / 2))\nplotter.show()\n", "cmd_opts": " --cell_id=2vaJ8BMbLs -s", "import_complete": 1, "terminal": "nvimterm"}
