@@ -10,10 +10,11 @@ from torchvision.transforms import Resize
 
 from shape_synthesis.datasets.mnist import DataConfig, get_dataloaders
 from shape_synthesis.datasets.transforms import get_transform
-from shape_synthesis.metrics.losses import vanilla_loss_function as loss_function
-from shape_synthesis.models.sigma_vae import ConvVAE
-from shape_synthesis.models.vae import VAE
 from shape_synthesis.metrics.loss import chamfer3DECT
+from shape_synthesis.metrics.losses import vanilla_loss_function as loss_function
+
+# from shape_synthesis.models.sigma_vae import ConvVAE
+from shape_synthesis.models.vae import VAE
 
 """ This script is an example of Sigma VAE training in PyTorch. The code was adapted from:
 https://github.com/pytorch/examples/blob/master/vae/main.py """
@@ -45,7 +46,7 @@ def main():
         batch_size=64,
     )
 
-    train_loader, test_loader = get_dataloaders(config=data_config, dev=False)
+    train_loader, test_loader = get_dataloaders(config=data_config, dev=True)
 
     transform = get_transform(compiled=False)
 
@@ -55,8 +56,8 @@ def main():
     )
 
     ## Build Model
-    model = ConvVAE(1, log_config.model_str, data_config.batch_size, "cuda").to(DEVICE)
-    # model = VAE(in_dim=28, hidden_dim=600, latent_dim=20).to(DEVICE)
+    # model = ConvVAE(1, log_config.model_str, data_config.batch_size, "cuda").to(DEVICE)
+    model = VAE(in_dim=128, hidden_dim=600, latent_dim=20).to(DEVICE)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     for epoch in range(1, train_config.epochs + 1):

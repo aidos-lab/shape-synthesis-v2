@@ -14,10 +14,10 @@ from dect.nn import EctConfig
 def get_transform(compiled: bool = False):
     return EctTransform(
         config=EctConfig(
-            num_thetas=32,
-            resolution=32,
+            num_thetas=128,
+            resolution=128,
             r=1.1,
-            scale=7,
+            scale=1,
             ect_type="points",
             ambient_dimension=2,
             normalized=True,
