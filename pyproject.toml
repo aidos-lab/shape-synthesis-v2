@@ -16,6 +16,7 @@ dependencies = [
     "tensorboard>=2.19.0",
     "torch~=2.5.1",
     "torch-fidelity>=0.3.0",
+    "scikit-image>=0.25.2",
 ]
 
 [project.scripts]
