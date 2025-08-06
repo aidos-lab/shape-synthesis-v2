@@ -7,11 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 import torch
-from torch_geometric.datasets import TUDataset
 from dect.directions import generate_uniform_directions
+from torch_geometric.datasets import TUDataset
 
 from custom_ect import compute_ect
-
 
 # |%%--%%| <6bapWgakqP|gJTKJcqLOo>
 
@@ -69,7 +68,6 @@ def filtered_back_projection(
         i += 1
         idx = calc_idx(theta, xg, yg, zg)
         reps = slice[idx]
-        breakpoint()
         recon += reps
     return recon
 
@@ -129,7 +127,7 @@ x /= x.norm(dim=-1).max()
 x *= 0.7
 
 ect = compute_ect(x, v, radius=RADIUS)
-density = filtered_back_projection(v.numpy(), ect, resolution=RESOLUTION)
+density = filtered_back_projection(v.numpy(), ect.numpy(), resolution=RESOLUTION)
 
 # |%%--%%| <RVege5o2r8|2vaJ8BMbLs>
 

@@ -39,8 +39,8 @@ url = "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/index.html"
 explicit = true
 
 [tool.uv.sources]
-dect = { git = "https://github.com/aidos-lab/dect.git" }
 kaolin = { url = "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.5.1_cu124/kaolin-0.17.0-cp310-cp310-linux_x86_64.whl" }
+dect = { git = "https://github.com/aidos-lab/dect.git" }
 
 [build-system]
 requires = ["hatchling"]
