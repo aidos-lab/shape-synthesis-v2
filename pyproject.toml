@@ -21,6 +21,9 @@ dependencies = [
     "trame>=3.11.0",
     "ipywidgets>=8.1.7",
     "vtk>=9.4.2",
+    "pyqt5>=5.15.11",
+    "plotly>=6.2.0",
+    "numba>=0.61.2",
 ]
 
 [project.scripts]

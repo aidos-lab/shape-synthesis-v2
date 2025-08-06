@@ -11,8 +11,15 @@ e.g. map the heights along a direction to an
 
 °°°"""
 
-# |%%--%%| <7QC7ccvxzj|ws4ZVs8aUd>
+#|%%--%%| <7QC7ccvxzj|nnIeZwtIwE>
 
+import matplotlib.pyplot as plt
+import numpy as np
+x = np.array([1,2,3])
+y = np.array([1,2,3])
+plt.plot(x,y)
+
+# |%%--%%| <nnIeZwtIwE|ws4ZVs8aUd>
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,9 +27,11 @@ import pyvista as pv
 import torch
 from torch_geometric.datasets import TUDataset
 
+pv.set_jupyter_backend("trame")
+
 np.random.seed(42)
 
-NUM_STEPS = 512
+NUM_STEPS = 128
 
 
 def generate_thetas():
@@ -45,7 +54,7 @@ v = generate_thetas()
 
 # |%%--%%| <ws4ZVs8aUd|GNFK8Jmwqe>
 
-scale = 1000
+scale = 300
 
 
 # Needs to be changed to dirac deltas.
@@ -69,72 +78,23 @@ def compute_ect(x, v, ei=None, radius=1):
 # |%%--%%| <GNFK8Jmwqe|hXqHlmje0j>
 
 
-dataset = TUDataset(root="./data", name="BZR", use_node_attr=True)
+dataset = TUDataset(root="./data", name="Letter-high", use_node_attr=True)
 
-data = dataset[1]
-# x = torch.hstack([data.x[:, :3], torch.zeros(len(data.x), 1)])
-x = data.x[:, :3]
+data = dataset[7]
+x = torch.hstack([data.x[:, :3], torch.zeros(len(data.x), 1)])
+# x = data.x[:, :3]
 x -= x.mean(axis=0)
 x /= x.norm(dim=-1).max()
-
-x *= 0.7
-
+# x *= 0.7
 ei = data.edge_index
-print(ei.shape)
-print(x.shape)
 
+pv.plot(x.numpy())
 
-# |%%--%%| <hXqHlmje0j|GoejiMqV4O>
+print(x.norm(dim=-1))
+print(x.mean(axis=0))
+print(len(x))
 
-# import matplotlib.pyplot as plt
-# import networkx as nx
-# import numpy as np
-# from mpl_toolkits.mplot3d import Axes3D
-#
-# # The graph to visualize
-# # G = nx.cycle_graph(20)
-# # pos = nx.spring_layout(G, dim=3, seed=779)
-#
-# # 3d spring layout
-# # Extract node and edge positions from the layout
-# node_xyz = data.x.numpy()
-# pts = data.x.numpy()
-#
-# edge_xyz = np.array([(pts[u], pts[v]) for u, v in data.edge_index.T])
-#
-#
-# # node_xyz = pts
-# # edge_xyz = np.array(ei_recon).T
-#
-# # Create the 3D figure
-# fig = plt.figure()
-# ax = fig.add_subplot(121, projection="3d")
-#
-# # Plot the nodes - alpha is scaled by "depth" automatically
-# ax.scatter(*node_xyz.T, s=100, ec="w")
-#
-# # Plot the edges
-# for vizedge in edge_xyz:
-#     ax.plot(*vizedge.T, color="tab:gray")
-#
-#
-# def _format_axes(ax):
-#     """Visualization options for the 3D axes."""
-#     # Turn gridlines off
-#     ax.grid(False)
-#     # Suppress tick labels
-#     for dim in (ax.xaxis, ax.yaxis, ax.zaxis):
-#         dim.set_ticks([])
-#     # Set axes labels
-#     ax.set_xlabel("x")
-#     ax.set_ylabel("y")
-#     ax.set_zlabel("z")
-#
-#
-# _format_axes(ax)
-# fig.tight_layout()
-
-# |%%--%%| <GoejiMqV4O|dkK3uOn7LI>
+# |%%--%%| <hXqHlmje0j|dkK3uOn7LI>
 
 
 # ect = compute_ect(data.x, v, ei=data.edge_index)
@@ -142,6 +102,7 @@ ect = compute_ect(x, v, radius=1)
 
 ect.shape
 plt.imshow(ect)
+
 
 # |%%--%%| <dkK3uOn7LI|xJPxvQLINr>
 
@@ -174,7 +135,6 @@ for theta, slice in zip(v.T, ect.T):
     reps = slice[idx]
     recon += reps
 
-
 plt.imshow(recon[:, :, int(NUM_STEPS / 2)])
 
 print(recon.shape)
@@ -187,12 +147,15 @@ print(recon.shape)
 recon_plot = recon.clone()
 recon_plot /= recon_plot.max()
 
-recon_plot[recon_plot < 0.75] = 0.0
+recon_plot[recon_plot < 0.7] = 0.0
+
+x_plot = (x.numpy() + 1) * (NUM_STEPS / 2)
 
 # Create a PyVista grid
 plotter = pv.Plotter()
 plotter.add_volume(recon_plot.cpu().numpy(), cmap="viridis", opacity="sigmoid")
-plotter.add_points(points=(x.numpy() + 1) * (NUM_STEPS / 2))
+plotter.add_points(x_plot,
+                   render_points_as_spheres=True,point_size=10,show_scalar_bar=False,)
 plotter.show()
 
 # |%%--%%| <2vaJ8BMbLs|VjPxVbsmbF>
@@ -393,4 +356,4 @@ fig.tight_layout()
 plt.show()
 
 
-# |%%--%%| <1ghGXulIEI|dUlCAOPsk5>
+ |%%--%%| <1ghGXulIEI|dUlCAOPsk5>
