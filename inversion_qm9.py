@@ -1,5 +1,5 @@
 r"""°°°
-Base example
+Base example for the inversion of a single molecule.
 °°°"""
 
 import numpy as np
@@ -8,71 +8,28 @@ import torch
 from dect.directions import generate_uniform_directions
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
-from torch import Tensor
 
 from bond_detection import build_bonds_pairwise_torch
+from custom_ect import compute_ect
 from inversion import filtered_back_projection
 from peak_finding import find_local_maxima_3d, merge_close_peaks
 
-# Settings
+#######################################################################
+### Fix seeds
+#######################################################################
 np.random.seed(42)
+
+
+#######################################################################
+# Settings
+#######################################################################
 RESOLUTION = 256
 RADIUS = 1.0
-scale = 500
+SCALE = 500
 # turn this on, if you want to find/plot bonds and evaluate reconstruction errors
-evaluate_errors = False
-
-
-# Needs to be changed to dirac deltas.
-def compute_ect(x: Tensor, v: Tensor, ei=None, radius=1) -> Tensor:
-    nh = x @ v
-    lin = torch.linspace(-radius, radius, RESOLUTION).view(-1, 1, 1)
-    ecc = torch.nn.functional.sigmoid(scale * torch.sub(lin, nh)) * (
-        1 - torch.nn.functional.sigmoid(scale * torch.sub(lin, nh))
-    )
-    ecc = ecc.sum(axis=1)
-    return ecc
-
-
-# ####################################################
-# ### Reconstruct 3d using filtered backprojection.
-# ####################################################
-
-
-def calc_idx(theta, xg, yg, zg):
-    R = RESOLUTION - 1
-    heights = theta[0] * xg + theta[1] * yg + theta[2] * zg
-    idx = ((heights + 1) * RESOLUTION / 2).astype(np.int64) + 1
-    idx[idx > R] = R
-    return idx
-
-
-def filtered_back_projection(
-    v,
-    ect,
-    resolution,
-):
-    xg, yg, zg = np.meshgrid(
-        np.linspace(-1, 1, RESOLUTION, endpoint=False),
-        np.linspace(-1, 1, RESOLUTION, endpoint=False),
-        np.linspace(-1, 1, RESOLUTION, endpoint=False),
-        indexing="ij",
-        sparse=True,
-    )
-
-    recon = np.zeros(shape=(RESOLUTION, RESOLUTION, RESOLUTION))
-
-    i = 0
-    for theta, slice in zip(v.T, ect.T):
-        i += 1
-        idx = calc_idx(theta, xg, yg, zg)
-        reps = slice[idx]
-        recon += reps
-    return recon
-
-
-####################################################
-####################################################
+EVALUATE_ERRORS = True
+#######################################################################
+#######################################################################
 
 
 class To3DNormalizedCoords:
@@ -90,7 +47,6 @@ class To3DNormalizedCoords:
 ##################### Example for a molecule with atom types ############################################
 #########################################################################################################
 
-# v = generate_thetas()
 v = generate_uniform_directions(RESOLUTION, d=3, seed=2025, device="cpu")
 
 x = torch.tensor(
@@ -134,8 +90,7 @@ to_angstrom = x.norm(dim=-1).max().item() / 0.7
 x = To3DNormalizedCoords()(x)
 
 # Compute the ECT
-ect = compute_ect(x, v, radius=RADIUS)
-density = filtered_back_projection(v.numpy(), ect.numpy(), resolution=RESOLUTION)
+ect = compute_ect(x, v, radius=RADIUS, scale=SCALE, resolution=RESOLUTION)
 
 # get the density after backprojecting
 recon_plot = filtered_back_projection(
@@ -176,7 +131,7 @@ row_ind, col_ind = linear_sum_assignment(cost_matrix)
 recon_aligned = np.empty_like(recon_np)
 recon_aligned[row_ind] = recon_np[col_ind]
 
-if evaluate_errors:
+if EVALUATE_ERRORS:
     # Position errors in Å
     position_errors = (
         np.linalg.norm(x_np - recon_aligned, axis=1) * to_angstrom
