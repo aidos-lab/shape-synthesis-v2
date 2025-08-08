@@ -2,19 +2,15 @@ r"""°°°
 Base example
 °°°"""
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
 import torch
-from torch_geometric.datasets import TUDataset
 from dect.directions import generate_uniform_directions
 from scipy.ndimage import maximum_filter, label
-from scipy.spatial.distance import cdist
 from scipy.cluster.hierarchy import fclusterdata
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
-
-from custom_ect import compute_ect
+from torch import Tensor
 
 
 # Settings
@@ -26,7 +22,7 @@ scale = 500
 
 
 # Needs to be changed to dirac deltas.
-def compute_ect(x, v, ei=None, radius=1):
+def compute_ect(x: Tensor, v: Tensor, ei=None, radius=1) -> Tensor:
     nh = x @ v
     lin = torch.linspace(-radius, radius, RESOLUTION).view(-1, 1, 1)
     ecc = torch.nn.functional.sigmoid(scale * torch.sub(lin, nh)) * (
@@ -41,44 +37,43 @@ def compute_ect(x, v, ei=None, radius=1):
 # ####################################################
 
 
-def calc_idx(theta, xg, yg, zg):
+def calc_idx(theta: Tensor, xg: Tensor, yg: Tensor, zg: Tensor) -> Tensor:
     R = RESOLUTION - 1
     heights = theta[0] * xg + theta[1] * yg + theta[2] * zg
-    idx = ((heights + 1) * RESOLUTION / 2).astype(np.int64) + 1
-    idx[idx > R] = R
+    idx = ((heights + 1) * RESOLUTION / 2).long().clamp(max=R)
     return idx
 
 
 def filtered_back_projection(
-    v,
-    ect,
+    v: Tensor,
+    ect: Tensor,
     resolution,
-):
-    xg, yg, zg = np.meshgrid(
-        np.linspace(-1, 1, RESOLUTION, endpoint=False),
-        np.linspace(-1, 1, RESOLUTION, endpoint=False),
-        np.linspace(-1, 1, RESOLUTION, endpoint=False),
+) -> Tensor:
+    linspace = torch.linspace(-1, 1, resolution)
+    xg, yg, zg = torch.meshgrid(
+        linspace,
+        linspace,
+        linspace,
         indexing="ij",
-        sparse=True,
     )
 
-    recon = np.zeros(shape=(RESOLUTION, RESOLUTION, RESOLUTION))
+    recon = torch.zeros(size=(RESOLUTION, RESOLUTION, RESOLUTION))
 
     i = 0
     for theta, slice in zip(v.T, ect.T):
         i += 1
         idx = calc_idx(theta, xg, yg, zg)
-        reps = slice.numpy()[idx]
+        reps = slice[idx]
         recon += reps
     return recon
 
 
-def find_local_maxima_3d(volume, threshold=0.0, neighborhood_size=3):
+def find_local_maxima_3d(volume: Tensor, threshold=0.0, neighborhood_size=3):
     """
     Find local maxima in a 3D volume.
 
     Parameters:
-        density (ndarray): 3D numpy array.
+        density (Tensor): 3D torch tensor.
         threshold (float): Minimum value to be considered a peak.
         neighborhood_size (int): Size of the neighborhood window (must be odd).
 
@@ -99,7 +94,7 @@ def find_local_maxima_3d(volume, threshold=0.0, neighborhood_size=3):
 
     return ids
 
-def merge_close_peaks(peaks, volume=None, distance_threshold=5.0, mode='max'):
+def merge_close_peaks(peaks, volume=None, distance_threshold=4.0, mode='max'):
     """
     Merge peaks that are closer than a distance threshold.
 
@@ -139,12 +134,6 @@ def merge_close_peaks(peaks, volume=None, distance_threshold=5.0, mode='max'):
         merged_peaks.append(merged)
 
     return np.array(merged_peaks)
-
-
-
-
-####################################################
-####################################################
 
 
 class To3DNormalizedCoords:
@@ -201,12 +190,12 @@ x *= 0.7
 ect = compute_ect(x, v, radius=RADIUS)
 density = filtered_back_projection(v.numpy(), ect, resolution=RESOLUTION)
 
-recon_plot = torch.from_numpy(density).float().clone()
+recon_plot = density.clone()
 recon_plot /= recon_plot.max()
-recon_plot[recon_plot < 0.8] = 0.0
+recon_plot[recon_plot < 0.7] = 0.0
 
-peak_ids = find_local_maxima_3d(recon_plot.cpu().numpy(), threshold=0.8)
-merged_peaks = merge_close_peaks(peak_ids, volume=recon_plot.cpu().numpy(), distance_threshold=5.0)
+peak_ids = find_local_maxima_3d(recon_plot.cpu().numpy(), threshold=0.7)
+merged_peaks = merge_close_peaks(peak_ids, volume=recon_plot.cpu().numpy(), distance_threshold=4.0)
 
 x_plot = (x.numpy() + 1) * (RESOLUTION / 2)
 
@@ -237,14 +226,6 @@ max_error = position_errors.max()
 print("Mean reconstruction error (Å):", mean_error)
 print("Max reconstruction error (Å):", max_error)
 
-# plotter.add_points(
-#     x_plot,
-#     render_points_as_spheres=True,
-#     point_size=5,
-#     color="red",
-#     show_scalar_bar=False,
-# )
-
 # add detected peaks
 plotter.add_points(
     merged_peaks,
@@ -253,6 +234,5 @@ plotter.add_points(
     color="red",
     show_scalar_bar=False,
 )
-
 
 plotter.show()
