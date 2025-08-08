@@ -8,6 +8,7 @@ import numpy as np
 import pyvista as pv
 import torch
 from dect.directions import generate_uniform_directions
+from torch import Tensor
 
 from custom_ect import compute_ect
 
@@ -17,40 +18,46 @@ RADIUS = 1.0
 SCALE = 500
 
 
-def calc_idx(theta, grid):
+def calc_idx(theta: Tensor, xg: Tensor, yg: Tensor, zg: Tensor) -> Tensor:
     R = RESOLUTION - 1
-    heights = torch.inner(theta.to(torch.float32), grid.movedim(0, 3).to(torch.float32))
-    idx = ((heights + 1) * RESOLUTION / 2).long() + 1
-    idx[idx > R] = R
+    heights = theta[0] * xg + theta[1] * yg + theta[2] * zg
+    idx = ((heights + 1) * RESOLUTION / 2).long().clamp(max=R)
     return idx
 
 
 def filtered_back_projection(
-    v,
-    ect,
+    v: Tensor,
+    ect: Tensor,
     resolution,
-    grid,
-    recon,
-):
+    normalized: bool = True,
+    threshold: float = 0.0,
+) -> Tensor:
+    linspace = torch.linspace(-1, 1, resolution)
+    xg, yg, zg = torch.meshgrid(
+        linspace,
+        linspace,
+        linspace,
+        indexing="ij",
+    )
+
+    recon = torch.zeros(size=(RESOLUTION, RESOLUTION, RESOLUTION))
+
+    i = 0
     for theta, slice in zip(v.T, ect.T):
-        idx = calc_idx(theta, grid)
+        i += 1
+        idx = calc_idx(theta, xg, yg, zg)
         reps = slice[idx]
         recon += reps
+
+    if normalized:
+        recon /= recon.max()
+        recon[recon < threshold] = 0.0
+    elif not normalized and threshold > 0.0:
+        raise Warning(
+            "Setting a threshold is not used when not normalizing the density"
+        )
     return recon
 
-
-xg, yg, zg = np.meshgrid(
-    np.linspace(-1, 1, RESOLUTION, endpoint=False),
-    np.linspace(-1, 1, RESOLUTION, endpoint=False),
-    np.linspace(-1, 1, RESOLUTION, endpoint=False),
-    indexing="ij",
-    sparse=False,
-)
-grid = torch.tensor(np.stack([xg, yg, zg]))
-
-recon = torch.tensor(
-    np.zeros(shape=(RESOLUTION, RESOLUTION, RESOLUTION), dtype=np.float32)
-)
 
 v = generate_uniform_directions(RESOLUTION, d=3, seed=2025, device="cpu")
 x = torch.load("x.pt")
@@ -61,8 +68,6 @@ density = filtered_back_projection(
     v.cuda(),
     ect.cuda(),
     resolution=RESOLUTION,
-    grid=grid.cuda(),
-    recon=recon.cuda(),
 )
 
 
