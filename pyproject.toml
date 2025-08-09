@@ -31,7 +31,7 @@ train = "shape_synthesis.train:main"
 evaluate = "shape_synthesis.evaluate:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["shape_synthesis"]
+packages = ["src"]
 
 [[tool.uv.index]]
 name = "kaolin-source"
