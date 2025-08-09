@@ -3,7 +3,7 @@ import torch
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 
-from bond_detection import build_bonds_pairwise_torch
+from src.metrics.bond_detection import build_bonds_pairwise_torch
 
 
 def _to_tuple_list(edges_t: torch.Tensor):

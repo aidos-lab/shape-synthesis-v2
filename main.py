@@ -1,10 +1,6 @@
 import numpy as np
-import torch
 from dect.directions import generate_uniform_directions
-from scipy.optimize import linear_sum_assignment
-from scipy.spatial.distance import cdist
 
-from bond_detection import build_bonds_pairwise_torch
 from custom_ect import compute_ect
 from src.datasets.single_molecule import get_dataset
 
