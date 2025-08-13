@@ -11,25 +11,34 @@ from src.plotting.recon import plot_reconstruction
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 300
-RADIUS = 1.0
-SCALE = 500
+RESOLUTION = 256  # Abbreviated to R
+RADIUS = 1.0  # Abbreviated to r, fixed to 1 for now.
+SCALE = 500  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
 #######################################################################
+
 
 #########################################################################################################
 #### Reconstruct
 #########################################################################################################
 
+
+# v has shape [3, R]
 v = generate_uniform_directions(RESOLUTION, d=3, seed=2025, device="cpu")
 
+# [N,3] where N is the number of atoms in the molecule.
 x, z, to_angstrom = get_dataset()
-# Compute the ECT
+
+# Compute the ECT.
 ect = compute_ect(x, v, radius=RADIUS, scale=SCALE, resolution=RESOLUTION)
 
-recon_np, (recon_plot, merged_peaks) = reconstruct_point_cloud(ect.cuda(), v.cuda())
+
+# x_recon is the reconstructed point cloud.
+# The additional tuple is for computing the loss.
+x_recon, (recon_plot, merged_peaks) = reconstruct_point_cloud(ect.cuda(), v.cuda())
+
 
 #########################################################################################################
-#### Metrics
+#### Evaluation metrics
 #########################################################################################################
 
 (
@@ -43,7 +52,7 @@ recon_np, (recon_plot, merged_peaks) = reconstruct_point_cloud(ect.cuda(), v.cud
     recon_aligned,
     orig_map,
     Z,
-) = compute_metrics(x, recon_np, to_angstrom, z)
+) = compute_metrics(x, x_recon, to_angstrom, z)
 
 #########################################################################################################
 #### Plotting

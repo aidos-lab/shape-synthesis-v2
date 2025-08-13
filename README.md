@@ -1,6 +1,5 @@
 # Shape Synthesis 
 
-Reimplementation of the previous code base. 
 
 
 # Installation
@@ -11,8 +10,11 @@ uv sync
 ```
 
 
-# Run the train script 
+# Run the reconstruction of the molecule. 
+
+The file `src/datasets/single_molecule.py` contains the single molecule. 
+
 
 ```shell
-uv run train
+uv run main.py 
 ```

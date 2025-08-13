@@ -81,6 +81,19 @@ def calc_idx(
     zg: Tensor,
     resolution: int,
 ) -> Tensor:
+    """
+    Calculate the projection of the voxel coordinates onto the
+    height vector and convert them to ECT indices.
+
+    Returns the projected indices of the voxel grid onto the
+    direction vectors and converts them to indices.
+
+    Parameters:
+    theta: A single direction of shape [3,]
+    xg,yg,zg: The meshgrids of the 3D voxels.
+    resolution: The resolution R of the ECT.
+
+    """
     R = resolution - 1
     heights = theta[0] * xg + theta[1] * yg + theta[2] * zg
     idx = ((heights + 1) * resolution / 2).long().clamp(max=R)
@@ -101,7 +114,23 @@ def filtered_back_projection(
         linspace,
         indexing="ij",
     )
+    """
+    Computes the filtered backprojection given an ECT and direction vector. 
+    The directions (colums) in V correspond to the columns in the ECT. 
 
+
+    Parameters: 
+    v: Direction vector of size [3,R]
+    ect: The Euler Characteristic Transform of shape [R,R]
+    resolution: resolution of the ECT. Is also R (and thus redundant).
+    normalized: If true, normalizes the voxels and ensures the maximum to be one. 
+    threshold: Number between 0 and 1 and serves as a cut-off for the reconstructed 
+        intensity (normalized to [0,1]). Anything below the threshold is set to 0.
+
+
+    Returns: 
+    recon: Voxel grid of shape [R,R,R] and contains the voxel intensities. 
+    """
     recon = torch.zeros(size=(resolution, resolution, resolution), device=ect.device)
 
     i = 0
@@ -122,10 +151,23 @@ def filtered_back_projection(
 
 
 def reconstruct_point_cloud(ect, v, threshold=0.7):
+    """
+    Reconstruct a point cloud from an ECT and the corresponding direction vector v.
+
+    Parameters:
+    ect: The ECT (actually the diracs) of size [R,R]
+    v: The direction vector of shape [3,R]
+    threshold: The cutoff intensity for the reconstructed voxel grid.
+
+    Returns
+    x_recon: Reconstructed point cloud x.
+    (recon_plot, merged_peaks): For debugging and metrics, can be ignored.
+    """
+
     # Assuming square ects for now.
     resolution = ect.shape[-1]
 
-    # get the density after backprojecting
+    # Get the voxel grid with the intensity after backprojecting of size [R,R,R]
     recon_plot = filtered_back_projection(
         v,
         ect,
@@ -134,14 +176,19 @@ def reconstruct_point_cloud(ect, v, threshold=0.7):
         threshold=threshold,
     )
 
+    # Find the local intensities in the voxel grids.
     peak_ids = find_local_maxima_3d(
         recon_plot.cpu().numpy(),
         threshold=threshold,
     )
+
     merged_peaks = merge_close_peaks(
-        peak_ids, volume=recon_plot.cpu().numpy(), distance_threshold=4.0
+        peak_ids,
+        volume=recon_plot.cpu().numpy(),
+        distance_threshold=4.0,
     )
+
     voxel_to_normalized = lambda p: (p / (resolution / 2)) - 1.0
     recon_peaks_normalized = voxel_to_normalized(merged_peaks)
-    recon_np = recon_peaks_normalized
-    return recon_np, (recon_plot, merged_peaks)
+    x_recon = recon_peaks_normalized
+    return x_recon, (recon_plot, merged_peaks)
