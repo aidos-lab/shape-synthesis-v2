@@ -23,6 +23,8 @@ def compute_metrics(x, recon_np, to_angstrom, z):
     recon_aligned = np.empty_like(recon_np)
     recon_aligned[row_ind] = recon_np[col_ind]
 
+    print(x_np.shape, recon_aligned.shape)
+
     # Position errors in Å
     position_errors = (
         np.linalg.norm(x_np - recon_aligned, axis=1) * to_angstrom

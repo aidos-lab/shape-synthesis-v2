@@ -121,16 +121,23 @@ def filtered_back_projection(
     return recon
 
 
-def reconstruct_point_cloud(ect, v):
+def reconstruct_point_cloud(ect, v, threshold=0.7):
     # Assuming square ects for now.
     resolution = ect.shape[-1]
 
     # get the density after backprojecting
     recon_plot = filtered_back_projection(
-        v, ect, resolution=resolution, normalized=True, threshold=0.7
+        v,
+        ect,
+        resolution=resolution,
+        normalized=True,
+        threshold=threshold,
     )
 
-    peak_ids = find_local_maxima_3d(recon_plot.cpu().numpy(), threshold=0.7)
+    peak_ids = find_local_maxima_3d(
+        recon_plot.cpu().numpy(),
+        threshold=threshold,
+    )
     merged_peaks = merge_close_peaks(
         peak_ids, volume=recon_plot.cpu().numpy(), distance_threshold=4.0
     )

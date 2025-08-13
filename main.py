@@ -1,5 +1,5 @@
 import numpy as np
-from dect.directions import generate_uniform_directions
+from dect.directions import generate_uniform_directions, generate_multiview_directions
 
 from custom_ect import compute_ect
 from src.datasets.single_molecule import get_dataset
@@ -11,7 +11,7 @@ from src.plotting.recon import plot_reconstruction
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 256
+RESOLUTION = 300
 RADIUS = 1.0
 SCALE = 500
 #######################################################################
@@ -26,7 +26,7 @@ x, z, to_angstrom = get_dataset()
 # Compute the ECT
 ect = compute_ect(x, v, radius=RADIUS, scale=SCALE, resolution=RESOLUTION)
 
-recon_np, (recon_plot, merged_peaks) = reconstruct_point_cloud(ect, v)
+recon_np, (recon_plot, merged_peaks) = reconstruct_point_cloud(ect.cuda(), v.cuda())
 
 #########################################################################################################
 #### Metrics
