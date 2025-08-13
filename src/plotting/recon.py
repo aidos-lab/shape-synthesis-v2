@@ -99,6 +99,7 @@ def plot_reconstruction(
                 recon_points_vox, point_labels, font_size=10, fill_shape=False
             )
 
+    print(merged_peaks)
     # add detected peaks
     plotter.add_points(
         merged_peaks,

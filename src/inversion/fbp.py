@@ -94,7 +94,7 @@ def filtered_back_projection(
     normalized: bool = True,
     threshold: float = 0.0,
 ) -> Tensor:
-    linspace = torch.linspace(-1, 1, resolution)
+    linspace = torch.linspace(-1, 1, resolution, device=ect.device)
     xg, yg, zg = torch.meshgrid(
         linspace,
         linspace,
@@ -102,7 +102,7 @@ def filtered_back_projection(
         indexing="ij",
     )
 
-    recon = torch.zeros(size=(resolution, resolution, resolution))
+    recon = torch.zeros(size=(resolution, resolution, resolution), device=ect.device)
 
     i = 0
     for theta, slice in zip(v.T, ect.T):
@@ -127,7 +127,7 @@ def reconstruct_point_cloud(ect, v):
 
     # get the density after backprojecting
     recon_plot = filtered_back_projection(
-        v.numpy(), ect, resolution=resolution, normalized=True, threshold=0.7
+        v, ect, resolution=resolution, normalized=True, threshold=0.7
     )
 
     peak_ids = find_local_maxima_3d(recon_plot.cpu().numpy(), threshold=0.7)
