@@ -1,7 +1,3 @@
-r"""°°°
-Base example for the inversion of a single molecule.
-°°°"""
-
 import numpy as np
 import pyvista as pv
 import torch
@@ -89,12 +85,14 @@ z = torch.tensor(
 to_angstrom = x.norm(dim=-1).max().item() / 0.7
 x = To3DNormalizedCoords()(x)
 
+print(to_angstrom)
+
 # Compute the ECT
 ect = compute_ect(x, v, radius=RADIUS, scale=SCALE, resolution=RESOLUTION)
 
 # get the density after backprojecting
 recon_plot = filtered_back_projection(
-    v.numpy(), ect, resolution=RESOLUTION, normalized=True, threshold=0.7
+    v, ect, resolution=RESOLUTION, normalized=True, threshold=0.7
 )
 
 peak_ids = find_local_maxima_3d(recon_plot.cpu().numpy(), threshold=0.7)
