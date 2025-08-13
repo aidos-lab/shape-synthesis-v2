@@ -6,24 +6,24 @@ from functools import partial
 
 import numpy as np
 import torch
-from dect.directions import generate_2d_directions, generate_uniform_directions
-from dect.ect import compute_ect_point_cloud
+from dect.directions import generate_multiview_directions, generate_uniform_directions
+from dect.ect import compute_ect_points
 from dect.nn import EctConfig
 
 
 def get_transform(compiled: bool = False):
     return EctTransform(
         config=EctConfig(
-            num_thetas=128,
-            resolution=128,
+            num_thetas=256,
+            resolution=256,
             r=1.1,
-            scale=1,
+            scale=500,
             ect_type="points",
-            ambient_dimension=2,
+            ambient_dimension=3,
             normalized=True,
             seed=2013,
         ),
-        structured_directions=False,
+        structured_directions=True,
         device="cuda",
         compiled=compiled,
     )
@@ -55,9 +55,19 @@ class EctTransform:
     ):
         self.config = config
         if structured_directions:
-            self.v = generate_2d_directions(
-                config.num_thetas,
+            num_t = config.num_thetas // 3
+            remainder = config.num_thetas % 3
+
+            v_pre = generate_multiview_directions(num_t + 1, d=3)
+
+            self.v = torch.hstack(
+                [
+                    v_pre[0][:, :num_t],
+                    v_pre[1][:, :num_t],
+                    v_pre[2][:, : num_t + remainder],
+                ]
             ).to(device)
+            print(self.v.shape)
         else:
             self.v = generate_uniform_directions(
                 config.num_thetas,
@@ -66,18 +76,31 @@ class EctTransform:
                 device=device,
             )
         self.ect_fn = partial(
-            compute_ect_point_cloud,
+            compute_ect_points,
             v=self.v,
             radius=self.config.r,
             resolution=self.config.resolution,
             scale=self.config.scale,
-            normalize=True,
         )
         if compiled:
             self.ect_fn = torch.compile(self.ect_fn)
 
-    def __call__(self, x):
-        return self.ect_fn(x)
+    def __call__(self, x, index):
+        ect = self.ect_fn(x=x, index=index)
+        ect = ect / torch.amax(ect, dim=(-1, -2), keepdim=True)
+        return 2 * ect - 1
+
+
+class To3DNormalizedCoords:
+    """Function to get the 3D coordinates from QM9."""
+
+    def __call__(self, data):
+        x = data.pos
+        x -= x.mean(axis=0)
+        x /= x.norm(dim=-1).max()
+        x *= 0.7
+        data.pos = x
+        return data
 
 
 # class MnistTransform:

@@ -1,14 +1,14 @@
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
 
-from shape_synthesis.metrics.loss import chamfer2DECT
+from metrics.loss import chamfer2DECT
 import torch
 from lightning.fabric.loggers.tensorboard import TensorBoardLogger
 from torch import optim
 
-from shape_synthesis.datasets.mnist import DataConfig, get_dataloaders
-from shape_synthesis.datasets.transforms import get_transform
-from shape_synthesis.models.encoder import Model, ModelConfig
+from datasets.mnist import DataConfig, get_dataloaders
+from datasets.transforms import get_transform
+from models.encoder import Model, ModelConfig
 
 
 """ This script is an example of Sigma VAE training in PyTorch. The code was adapted from:
