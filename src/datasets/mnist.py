@@ -5,7 +5,7 @@ import torch
 from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, ToTensor
 
-from shape_synthesis.configs import print_config, save_config
+from configs import print_config, save_config
 
 
 @dataclass

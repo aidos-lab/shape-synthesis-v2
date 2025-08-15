@@ -6,20 +6,24 @@ from functools import partial
 
 import numpy as np
 import torch
-from dect.directions import generate_multiview_directions, generate_uniform_directions
+from dect.directions import (
+    generate_2d_directions,
+    generate_multiview_directions,
+    generate_uniform_directions,
+)
 from dect.ect import compute_ect_points
 from dect.nn import EctConfig
 
 
-def get_transform(compiled: bool = False):
+def get_transform(compiled: bool = False, resolution: int = 128, d: int = 3):
     return EctTransform(
         config=EctConfig(
-            num_thetas=128,
-            resolution=128,
+            num_thetas=resolution,
+            resolution=resolution,
             r=1.1,
             scale=500,
             ect_type="points",
-            ambient_dimension=3,
+            ambient_dimension=d,
             normalized=True,
             seed=2013,
         ),
@@ -55,22 +59,24 @@ class EctTransform:
     ):
         self.config = config
         if structured_directions:
-            num_t = config.num_thetas // 3
-            remainder = config.num_thetas % 3
+            if config.ambient_dimension == 3:
+                num_t = config.num_thetas // 3
+                remainder = config.num_thetas % 3
 
-            v_pre = generate_multiview_directions(num_t + 3, d=3)
+                v_pre = generate_multiview_directions(num_t + 3, d=3)
 
-            self.v = torch.hstack(
-                [
-                    v_pre[0][:, :num_t],
-                    v_pre[1][:, :num_t],
-                    v_pre[2][:, : num_t + remainder],
-                ]
-            ).to(device)
-            print(self.v.shape)
-            print(remainder)
-            print(num_t)
-
+                self.v = torch.hstack(
+                    [
+                        v_pre[0][:, :num_t],
+                        v_pre[1][:, :num_t],
+                        v_pre[2][:, : num_t + remainder],
+                    ]
+                ).to(device)
+                print(self.v.shape)
+                print(remainder)
+                print(num_t)
+            elif config.ambient_dimension == 2:
+                self.v = generate_2d_directions(config.num_thetas).to(device)
         else:
             self.v = generate_uniform_directions(
                 config.num_thetas,
@@ -91,7 +97,7 @@ class EctTransform:
     def __call__(self, x, index):
         ect = self.ect_fn(x=x, index=index)
         ect = ect / torch.amax(ect, dim=(-1, -2), keepdim=True)
-        return 2 * ect - 1
+        return ect
 
 
 class To3DNormalizedCoords:
@@ -104,22 +110,3 @@ class To3DNormalizedCoords:
         x *= 0.7
         data.pos = x
         return data
-
-
-# class MnistTransform:
-#     def __init__(self):
-#         xcoords = torch.linspace(-0.5, 0.5, 28)
-#         ycoords = torch.linspace(-0.5, 0.5, 28)
-#         self.X, self.Y = torch.meshgrid(xcoords, ycoords)
-#         self.tr = torchvision.transforms.ToTensor()
-#
-#     def __call__(self, data: tuple) -> Data:
-#         img, y = data
-#         img = self.tr(img)
-#         idx = torch.nonzero(img.squeeze(), as_tuple=True)
-#
-#         return Data(
-#             x=torch.vstack([self.X[idx], self.Y[idx]]).T,
-#             # face=torch.tensor(dly.cells(), dtype=torch.long).T,
-#             y=torch.tensor(y, dtype=torch.long),
-#         )

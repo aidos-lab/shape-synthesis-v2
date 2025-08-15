@@ -2,6 +2,8 @@ data/
 vae_logs/
 .jukit/
 results/
+mnist/
+src/models/weights/
 
 
 
