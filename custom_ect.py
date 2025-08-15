@@ -11,8 +11,8 @@ def compute_ect(
     radius: float = 1.0,
     scale: int = 500,
 ) -> Tensor:
-    nh = x @ v
-    lin = torch.linspace(-radius, radius, resolution).view(-1, 1, 1)
+    nh = x @ v.to(x.device)
+    lin = torch.linspace(-radius, radius, resolution, device=x.device).view(-1, 1, 1)
     ecc = torch.nn.functional.sigmoid(scale * torch.sub(lin, nh)) * (
         1 - torch.nn.functional.sigmoid(scale * torch.sub(lin, nh))
     )

@@ -4,7 +4,10 @@ from scipy.cluster.hierarchy import fclusterdata
 from scipy.ndimage import label, maximum_filter
 from torch import Tensor
 
+from src.timing import timer_func
 
+
+@timer_func
 def find_local_maxima_3d(volume: Tensor, threshold=0.0, neighborhood_size=3):
     """
     Find local maxima in a 3D volume.
@@ -32,6 +35,7 @@ def find_local_maxima_3d(volume: Tensor, threshold=0.0, neighborhood_size=3):
     return ids
 
 
+@timer_func
 def merge_close_peaks(peaks, volume=None, distance_threshold=4.0, mode="max"):
     """
     Merge peaks that are closer than a distance threshold.
@@ -100,6 +104,7 @@ def calc_idx(
     return idx
 
 
+@timer_func
 def filtered_back_projection(
     v: Tensor,
     ect: Tensor,
@@ -150,6 +155,7 @@ def filtered_back_projection(
     return recon
 
 
+@timer_func
 def reconstruct_point_cloud(ect, v, threshold=0.7):
     """
     Reconstruct a point cloud from an ECT and the corresponding direction vector v.
