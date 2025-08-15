@@ -1,14 +1,11 @@
 import os
-from torch_geometric.loader import DataLoader
 from dataclasses import dataclass
 
 import torch
 from torch_geometric.datasets import QM9
+from torch_geometric.loader import DataLoader
 
-from src.datasets.transforms import To3DNormalizedCoords
-
-
-from src.configs import print_config, save_config
+from src.datasets.transforms import To3DNormalizedCoords, get_transform
 
 
 @dataclass
@@ -39,25 +36,34 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
 
     # Download the full QM9 dataset.
     dataset = QM9(
-        root=path,
-        pre_transform=To3DNormalizedCoords(),
+        root=raw_path,
         force_reload=force_reload,
     ).shuffle()
 
-    qm9_train = dataset[:110_000]
-    qm9_val = dataset[110_000:120_000]
-    qm9_test = dataset[120_000:]
+    tr = To3DNormalizedCoords()
+    ect_tr = get_transform()
+    res = []
+    for idx, data in enumerate(dataset):
+        data_new = tr(data)
+        ects = ect_tr(data_new.pos.cuda(), index=None).cpu()
+        res.append(ects)
+        if dev and idx == 256:
+            break
 
-    if dev:
-        qm9_train = torch.utils.data.Subset(qm9_train, torch.arange(0, 64))
-        qm9_val = torch.utils.data.Subset(qm9_val, torch.arange(0, 64))
-        qm9_test = torch.utils.data.Subset(qm9_test, torch.arange(0, 64))
+    transformed = torch.stack(res)
+
+    total_el = len(transformed)
+    num_train = int(0.7 * total_el)
+    num_test = int(0.2 * total_el)
+    num_val = total_el - num_train - num_test
+
+    qm9_train = transformed[:num_train]
+    qm9_test = transformed[num_train : num_train + num_test]
+    qm9_val = transformed[-num_val:]
 
     torch.save(qm9_train, f"{path}/train.pt")
     torch.save(qm9_val, f"{path}/val.pt")
     torch.save(qm9_test, f"{path}/test.pt")
-
-    save_config(config=config, path=f"{path}/config.yaml")
 
 
 def get_dataloaders(config: DataConfig, dev: bool = False):
@@ -66,12 +72,12 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
     dataset_type = "dev" if dev else "prod"
     path = f"{config.root}/qm9/{dataset_type}"
 
-    train_ds = torch.load(f"{path}/train.pt")
-    val_ds = torch.load(f"{path}/val.pt")
-    test_ds = torch.load(f"{path}/test.pt")
+    train_ds = torch.load(f"{path}/train.pt", weights_only=True).cpu()
+    # val_ds = torch.load(f"{path}/val.pt", weights_only=True)
+    test_ds = torch.load(f"{path}/test.pt", weights_only=True).cpu()
 
-    # train_ds = torch.utils.data.TensorDataset(train_ds)
-    # test_ds = torch.utils.data.TensorDataset(test_ds)
+    train_ds = torch.utils.data.TensorDataset(train_ds)
+    test_ds = torch.utils.data.TensorDataset(test_ds)
 
     train_dl = DataLoader(
         train_ds,
@@ -97,5 +103,5 @@ if __name__ == "__main__":
         raw="./data/raw",
         batch_size=64,
     )
-    create_dataset(config, dev=True, force_reload=True)
-    create_dataset(config, dev=False, force_reload=True)
+    create_dataset(config, dev=True, force_reload=False)
+    create_dataset(config, dev=False, force_reload=False)

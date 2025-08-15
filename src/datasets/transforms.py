@@ -14,8 +14,8 @@ from dect.nn import EctConfig
 def get_transform(compiled: bool = False):
     return EctTransform(
         config=EctConfig(
-            num_thetas=256,
-            resolution=256,
+            num_thetas=128,
+            resolution=128,
             r=1.1,
             scale=500,
             ect_type="points",
@@ -58,7 +58,7 @@ class EctTransform:
             num_t = config.num_thetas // 3
             remainder = config.num_thetas % 3
 
-            v_pre = generate_multiview_directions(num_t + 1, d=3)
+            v_pre = generate_multiview_directions(num_t + 3, d=3)
 
             self.v = torch.hstack(
                 [
@@ -68,6 +68,9 @@ class EctTransform:
                 ]
             ).to(device)
             print(self.v.shape)
+            print(remainder)
+            print(num_t)
+
         else:
             self.v = generate_uniform_directions(
                 config.num_thetas,

@@ -1,6 +1,7 @@
 data/
 vae_logs/
 .jukit/
+results/
 
 
 

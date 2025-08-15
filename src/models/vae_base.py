@@ -11,72 +11,72 @@ class VAE(nn.Module):
         self.encoder = nn.Sequential(
             ###################################################
             # (B, 128, W) -> (B, 64, W/2)
-            nn.Conv2d(1, 128, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.Conv2d(1, 128, kernel_size=3, stride=2, padding=1),
+            # nn.BatchNorm2d(128),
+            nn.SiLU(),
             ###################################################
             # (B, 64, W/2) -> (B, 32, W/4)
-            nn.Conv2d(128, 256, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            # nn.BatchNorm2d(256),
+            nn.SiLU(),
             ###################################################
-            nn.Conv2d(256, 256, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1),
+            # nn.BatchNorm2d(256),
+            nn.SiLU(),
             ###################################################
-            nn.Conv2d(256, 256, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1),
+            # nn.BatchNorm2d(256),
+            nn.SiLU(),
             ###################################################
-            nn.Conv2d(256, 256, kernel_size=7, stride=2, padding=3),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            ###################################################
-            # (B, 64, W/4) -> (B, 32, W/8)
-            nn.Conv2d(256, 512, kernel_size=7, stride=2, padding=3),
+            nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1),
+            # nn.BatchNorm2d(256),
+            # nn.SiLU(),
+            # ###################################################
+            # # (B, 64, W/4) -> (B, 32, W/8)
+            # nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
             # Output: (B,1024,16)
         )
 
         self.decoder = nn.Sequential(
+            # ###################################################
+            # nn.ConvTranspose2d(
+            #     512, 256, kernel_size=3, stride=2, padding=1, output_padding=1
+            # ),
+            # # nn.BatchNorm2d(256),
+            # nn.SiLU(),
             ###################################################
             nn.ConvTranspose2d(
-                512, 256, kernel_size=7, stride=2, padding=3, output_padding=1
+                256, 256, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            # nn.BatchNorm2d(256),
+            nn.SiLU(),
             ###################################################
             nn.ConvTranspose2d(
-                256, 256, kernel_size=7, stride=2, padding=3, output_padding=1
+                256, 256, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            # nn.BatchNorm2d(256),
+            nn.SiLU(),
             ###################################################
             nn.ConvTranspose2d(
-                256, 256, kernel_size=7, stride=2, padding=3, output_padding=1
+                256, 256, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            # nn.BatchNorm2d(256),
+            nn.SiLU(),
             ###################################################
             nn.ConvTranspose2d(
-                256, 256, kernel_size=7, stride=2, padding=3, output_padding=1
+                256, 128, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            # nn.BatchNorm2d(128),
+            nn.SiLU(),
             ###################################################
             nn.ConvTranspose2d(
-                256, 128, kernel_size=7, stride=2, padding=3, output_padding=1
-            ),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            ###################################################
-            nn.ConvTranspose2d(
-                128, 1, kernel_size=7, stride=2, padding=3, output_padding=1
+                128, 1, kernel_size=3, stride=2, padding=1, output_padding=1
             ),
             nn.Tanh(),
         )
-        self.fc_mu = nn.Linear(512 * 16, latent_dim)
-        self.fc_var = nn.Linear(512 * 16, latent_dim)
-        self.decoder_input = nn.Linear(latent_dim, 512 * 16)
+        self.fc_mu = nn.Linear(512 * 8, latent_dim)
+        self.fc_var = nn.Linear(512 * 8, latent_dim)
+        self.decoder_input = nn.Linear(latent_dim, 512 * 8)
 
     def encode(self, input_tensor):
         result = self.encoder(input_tensor)
@@ -95,7 +95,7 @@ class VAE(nn.Module):
         """
 
         result = self.decoder_input(z)
-        result_new = self.decoder(result.view(-1, 512, 4, 4))
+        result_new = self.decoder(result.view(-1, 256, 4, 4))
         return result_new
 
     def reparameterize(self, mu, logvar):

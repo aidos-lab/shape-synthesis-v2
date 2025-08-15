@@ -1,5 +1,6 @@
 import numpy as np
-from dect.directions import generate_uniform_directions, generate_multiview_directions
+import pyvista as pv
+from dect.directions import generate_multiview_directions, generate_uniform_directions
 
 from custom_ect import compute_ect
 from src.datasets.single_molecule import get_dataset
@@ -11,9 +12,10 @@ from src.plotting.recon import plot_reconstruction
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 256  # Abbreviated to R
+RESOLUTION = 128  # Abbreviated to R
 RADIUS = 1.0  # Abbreviated to r, fixed to 1 for now.
-SCALE = 500  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
+SCALE = 300  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
+DEVICE = "cpu"  # Device to compute on.
 #######################################################################
 
 
@@ -34,7 +36,14 @@ ect = compute_ect(x, v, radius=RADIUS, scale=SCALE, resolution=RESOLUTION)
 
 # x_recon is the reconstructed point cloud.
 # The additional tuple is for computing the loss.
-x_recon, (recon_plot, merged_peaks) = reconstruct_point_cloud(ect.cuda(), v.cuda())
+x_recon, (recon_plot, merged_peaks) = reconstruct_point_cloud(
+    ect.to(DEVICE), v.to(DEVICE)
+)
+
+plotter = pv.Plotter()
+plotter.add_points(points=x_recon, render_points_as_spheres=True, color="blue")
+plotter.add_points(points=x.numpy(), render_points_as_spheres=True, color="red")
+plotter.show()
 
 
 #########################################################################################################
