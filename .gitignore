@@ -4,6 +4,7 @@ vae_logs/
 results/
 mnist/
 src/models/weights/
+scratch/
 
 
 

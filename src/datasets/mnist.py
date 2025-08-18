@@ -1,11 +1,14 @@
 import os
 from dataclasses import dataclass
 
+import matplotlib.pyplot as plt
 import torch
+from scipy.ndimage import gaussian_filter
+from skimage.filters import gaussian
+from skimage.morphology import binary_dilation, skeletonize
 from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, ToTensor
-
-from configs import print_config, save_config
+from torchvision.transforms.functional import gaussian_blur
 
 
 @dataclass
@@ -15,12 +18,15 @@ class DataConfig:
     raw: str
     num_pts: int
     batch_size: int
+    skeletonize: bool
 
 
 def sample_point_cloud_from_image(dataset, config: DataConfig):
     num_tries = 10
     # Transform the train set.
-    full_point_cloud = torch.empty(size=(len(dataset), config.num_pts, 2))
+    full_point_cloud = (
+        -1 * torch.inf * torch.ones(size=(len(dataset), config.num_pts, 2))
+    )
     imgs = torch.empty(size=(len(dataset), 28, 28))
     for idx, (img, _) in enumerate(dataset):
 
@@ -28,29 +34,40 @@ def sample_point_cloud_from_image(dataset, config: DataConfig):
         img = img.squeeze()
         img = torch.rot90(img, 3)
 
-        point_cloud = torch.empty(size=(config.num_pts, 2))
-        for i in range(num_tries):
-            # Create large vector of samples, this may fail.
-            XY = torch.rand(size=(40 * config.num_pts, 2))
-            Z = torch.rand(size=(40 * config.num_pts,))
+        if config.skeletonize:
+            img_s = torch.tensor(skeletonize(img.numpy()))
+            pts = img_s.nonzero() / 28
+            full_point_cloud[idx, : len(pts), :] = pts
 
-            XY_idx = torch.floor(28 * XY).to(torch.int)
-            mask = Z < img[XY_idx[:, 0], XY_idx[:, 1]]
-            point_cloud = XY[mask]
-            # Transform so the point cloud is with the "right side up".
-            if len(point_cloud) >= config.num_pts:
-                full_point_cloud[idx, :, :] = point_cloud[: config.num_pts, :]
-                break
-            else:
-                print(idx, "Num tries left", num_tries - i)
-                if i == num_tries - 1:
-                    raise ValueError()
+        else:
+            point_cloud = torch.empty(size=(config.num_pts, 2))
+            for i in range(num_tries):
+                # Create large vector of samples, this may fail.
+                XY = torch.rand(size=(40 * config.num_pts, 2))
+                Z = torch.rand(size=(40 * config.num_pts,))
 
-        # Transform to get the image displayed correctly.
-        imgs[idx] = torch.rot90(img, 1)
+                XY_idx = torch.floor(28 * XY).to(torch.int)
+                mask = Z < img[XY_idx[:, 0], XY_idx[:, 1]]
+                point_cloud = XY[mask]
+                # Transform so the point cloud is with the "right side up".
+                if len(point_cloud) >= config.num_pts:
+                    full_point_cloud[idx, :, :] = point_cloud[: config.num_pts, :]
+                    break
+                else:
+                    print(idx, "Num tries left", num_tries - i)
+                    if i == num_tries - 1:
+                        raise ValueError()
+
+            # Transform to get the image displayed correctly.
+            imgs[idx] = torch.rot90(img, 1)
 
     # Center the point cloud around [-1,1]^2
     full_point_cloud = 2 * full_point_cloud - 1
+
+    # plt.scatter(full_point_cloud[0, :, 0], full_point_cloud[0, :, 1])
+    # plt.show()
+    # breakpoint()
+    # breakpoint()
 
     return full_point_cloud, imgs
 
@@ -81,10 +98,12 @@ def create_dataset(config: DataConfig, dev: bool = False):
         mnist_test = torch.utils.data.Subset(mnist_test, torch.arange(0, 64))
 
     train_point_cloud, train_imgs = sample_point_cloud_from_image(
-        mnist_train, config=config
+        mnist_train,
+        config=config,
     )
     test_point_cloud, test_imgs = sample_point_cloud_from_image(
-        mnist_test, config=config
+        mnist_test,
+        config=config,
     )
 
     torch.save(train_point_cloud, f"{path}/train.pt")
@@ -92,7 +111,7 @@ def create_dataset(config: DataConfig, dev: bool = False):
     torch.save(train_imgs, f"{path}/train_imgs.pt")
     torch.save(test_imgs, f"{path}/test_imgs.pt")
 
-    save_config(config=config, path=f"{path}/config.yaml")
+    # save_config(config=config, path=f"{path}/config.yaml")
 
 
 def get_dataloaders(config: DataConfig, dev: bool = False):
@@ -113,8 +132,9 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         train_ds,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=0,
+        num_workers=5,
         drop_last=True if not dev else False,
+        persistent_workers=True,
     )
 
     test_dl = torch.utils.data.DataLoader(
@@ -131,9 +151,10 @@ if __name__ == "__main__":
     config = DataConfig(
         root="./data",
         raw="./data/raw",
-        num_pts=256,
+        num_pts=150,
         module="datasets.mnist",
         batch_size=64,
+        skeletonize=True,
     )
     create_dataset(config, dev=True)
     create_dataset(config, dev=False)

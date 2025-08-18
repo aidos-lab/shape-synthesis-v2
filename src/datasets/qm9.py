@@ -43,10 +43,14 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
     tr = To3DNormalizedCoords()
     ect_tr = get_transform()
     res = []
+    pts = []
+    batch = []
     for idx, data in enumerate(dataset):
         data_new = tr(data)
         ects = ect_tr(data_new.pos.cuda(), index=None).cpu()
         res.append(ects)
+        pts.append(data_new.pos)
+        batch.append(data.batch)
         if dev and idx == 256:
             break
 
