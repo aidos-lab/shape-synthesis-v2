@@ -5,23 +5,23 @@ from models.blocks import DownBlock, MidBlock, UpBlock
 
 
 class VQVAE(nn.Module):
-    def __init__(self, im_channels, model_config):
+    def __init__(self, config):
         super().__init__()
-        self.down_channels = model_config["down_channels"]
-        self.mid_channels = model_config["mid_channels"]
-        self.down_sample = model_config["down_sample"]
-        self.num_down_layers = model_config["num_down_layers"]
-        self.num_mid_layers = model_config["num_mid_layers"]
-        self.num_up_layers = model_config["num_up_layers"]
+        self.down_channels = config.down_channels
+        self.mid_channels = config.mid_channels
+        self.down_sample = config.down_sample
+        self.num_down_layers = config.num_down_layers
+        self.num_mid_layers = config.num_mid_layers
+        self.num_up_layers = config.num_up_layers
 
         # To disable attention in Downblock of Encoder and Upblock of Decoder
-        self.attns = model_config["attn_down"]
+        self.attns = config.attn_down
 
         # Latent Dimension
-        self.z_channels = model_config["z_channels"]
-        self.codebook_size = model_config["codebook_size"]
-        self.norm_channels = model_config["norm_channels"]
-        self.num_heads = model_config["num_heads"]
+        self.z_channels = config.z_channels
+        self.codebook_size = config.codebook_size
+        self.norm_channels = config.norm_channels
+        self.num_heads = config.num_heads
 
         # Assertion to validate the channel information
         assert self.mid_channels[0] == self.down_channels[-1]
@@ -35,7 +35,10 @@ class VQVAE(nn.Module):
 
         ##################### Encoder ######################
         self.encoder_conv_in = nn.Conv2d(
-            im_channels, self.down_channels[0], kernel_size=3, padding=(1, 1)
+            config.im_channels,
+            self.down_channels[0],
+            kernel_size=3,
+            padding=1,
         )
 
         # Downblock + Midblock
@@ -120,7 +123,7 @@ class VQVAE(nn.Module):
 
         self.decoder_norm_out = nn.GroupNorm(self.norm_channels, self.down_channels[0])
         self.decoder_conv_out = nn.Conv2d(
-            self.down_channels[0], im_channels, kernel_size=3, padding=1
+            self.down_channels[0], config.im_channels, kernel_size=3, padding=1
         )
 
     def quantize(self, x):

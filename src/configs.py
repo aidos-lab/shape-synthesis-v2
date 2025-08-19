@@ -8,6 +8,10 @@ from types import SimpleNamespace
 import yaml
 
 
+def load_object(d):
+    return SimpleNamespace(**d)
+
+
 def load_config(path: str):
     """
     Loads the configuration yaml and parses it into an object with dot access.

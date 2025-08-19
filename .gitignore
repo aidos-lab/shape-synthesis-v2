@@ -5,6 +5,8 @@ results/
 mnist/
 src/models/weights/
 scratch/
+trained_models/
+
 
 
 

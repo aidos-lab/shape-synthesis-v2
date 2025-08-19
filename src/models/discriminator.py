@@ -12,16 +12,14 @@ class Discriminator(nn.Module):
     to the grid cell is real
     """
 
-    def __init__(
-        self,
-        im_channels=3,
-        conv_channels=[64, 128, 256],
-        kernels=[4, 4, 4, 4],
-        strides=[2, 2, 2, 1],
-        paddings=[1, 1, 1, 1],
-    ):
+    def __init__(self, config):
         super().__init__()
-        self.im_channels = im_channels
+        conv_channels = [64, 128, 256]
+        kernels = [4, 4, 4, 4]
+        strides = [2, 2, 2, 1]
+        paddings = [1, 1, 1, 1]
+
+        self.im_channels = config.im_channels
         activation = nn.LeakyReLU(0.2)
         layers_dim = [self.im_channels] + conv_channels + [1]
         self.layers = nn.ModuleList(
