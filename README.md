@@ -21,3 +21,7 @@ To run the end to end reconstruction pipeline run the following command in the c
 ```shell
 uv run main.py 
 ```
+
+# Models 
+
+The latent diffusion model architecture is taken from https://github.com/explainingai-code/StableDiffusion-PyTorch

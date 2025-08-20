@@ -1,65 +1,154 @@
 import torch
-from dect.nn import EctConfig
-from torch import nn
+import torch.nn as nn
+
+from models.blocks import DownBlock, MidBlock, UpBlock
 
 
 class VAE(nn.Module):
-    def __init__(self, in_dim=28, hidden_dim=400, latent_dim=200):
+    def __init__(self, im_channels, model_config):
         super().__init__()
-        input_dim = in_dim * in_dim
-        output_dim = in_dim * in_dim
-        self.latent_dim = latent_dim
+        self.down_channels = model_config["down_channels"]
+        self.mid_channels = model_config["mid_channels"]
+        self.down_sample = model_config["down_sample"]
+        self.num_down_layers = model_config["num_down_layers"]
+        self.num_mid_layers = model_config["num_mid_layers"]
+        self.num_up_layers = model_config["num_up_layers"]
 
-        # Encoder
-        self.FC_input = nn.Linear(input_dim, hidden_dim)
-        self.FC_input2 = nn.Linear(hidden_dim, hidden_dim)
-        self.FC_mean = nn.Linear(hidden_dim, latent_dim)
-        self.FC_var = nn.Linear(hidden_dim, latent_dim)
-        self.LeakyReLU = nn.LeakyReLU(0.2)
+        # To disable attention in Downblock of Encoder and Upblock of Decoder
+        self.attns = model_config["attn_down"]
 
-        # Decoder
-        self.FC_hidden = nn.Linear(latent_dim, hidden_dim)
-        self.FC_hidden2 = nn.Linear(hidden_dim, hidden_dim)
-        self.FC_output = nn.Linear(hidden_dim, output_dim)
-        self.LeakyReLU = nn.LeakyReLU(0.2)
+        # Latent Dimension
+        self.z_channels = model_config["z_channels"]
+        self.norm_channels = model_config["norm_channels"]
+        self.num_heads = model_config["num_heads"]
 
-    def forward_encoder(self, x):
-        h_ = self.LeakyReLU(self.FC_input(x))
-        h_ = self.LeakyReLU(self.FC_input2(h_))
-        mean = self.FC_mean(h_)
-        log_var = self.FC_var(h_)  # encoder produces mean and log of variance
+        # Assertion to validate the channel information
+        assert self.mid_channels[0] == self.down_channels[-1]
+        assert self.mid_channels[-1] == self.down_channels[-1]
+        assert len(self.down_sample) == len(self.down_channels) - 1
+        assert len(self.attns) == len(self.down_channels) - 1
 
-        return mean, log_var
+        # Wherever we use downsampling in encoder correspondingly use
+        # upsampling in decoder
+        self.up_sample = list(reversed(self.down_sample))
 
-    def forward_decoder(self, x):
-        h = self.LeakyReLU(self.FC_hidden(x))
-        h = self.LeakyReLU(self.FC_hidden2(h))
+        ##################### Encoder ######################
+        self.encoder_conv_in = nn.Conv2d(
+            im_channels, self.down_channels[0], kernel_size=3, padding=(1, 1)
+        )
 
-        x_hat = torch.sigmoid(self.FC_output(h))
-        return x_hat
+        # Downblock + Midblock
+        self.encoder_layers = nn.ModuleList([])
+        for i in range(len(self.down_channels) - 1):
+            self.encoder_layers.append(
+                DownBlock(
+                    self.down_channels[i],
+                    self.down_channels[i + 1],
+                    t_emb_dim=None,
+                    down_sample=self.down_sample[i],
+                    num_heads=self.num_heads,
+                    num_layers=self.num_down_layers,
+                    attn=self.attns[i],
+                    norm_channels=self.norm_channels,
+                )
+            )
 
-    def reparameterization(self, mean, var):
-        epsilon = torch.randn_like(var)
-        z = mean + var * epsilon  # reparameterization trick
-        return z
+        self.encoder_mids = nn.ModuleList([])
+        for i in range(len(self.mid_channels) - 1):
+            self.encoder_mids.append(
+                MidBlock(
+                    self.mid_channels[i],
+                    self.mid_channels[i + 1],
+                    t_emb_dim=None,
+                    num_heads=self.num_heads,
+                    num_layers=self.num_mid_layers,
+                    norm_channels=self.norm_channels,
+                )
+            )
 
-    def sample(self, n):
-        sample = torch.randn(n, self.latent_dim, device="cuda")
-        return self.forward_decoder(sample).view(-1, 1, 28, 28)
+        self.encoder_norm_out = nn.GroupNorm(self.norm_channels, self.down_channels[-1])
+        self.encoder_conv_out = nn.Conv2d(
+            self.down_channels[-1], 2 * self.z_channels, kernel_size=3, padding=1
+        )
+
+        # Latent Dimension is 2*Latent because we are predicting mean & variance
+        self.pre_quant_conv = nn.Conv2d(
+            2 * self.z_channels, 2 * self.z_channels, kernel_size=1
+        )
+        ####################################################
+
+        ##################### Decoder ######################
+        self.post_quant_conv = nn.Conv2d(
+            self.z_channels, self.z_channels, kernel_size=1
+        )
+        self.decoder_conv_in = nn.Conv2d(
+            self.z_channels, self.mid_channels[-1], kernel_size=3, padding=(1, 1)
+        )
+
+        # Midblock + Upblock
+        self.decoder_mids = nn.ModuleList([])
+        for i in reversed(range(1, len(self.mid_channels))):
+            self.decoder_mids.append(
+                MidBlock(
+                    self.mid_channels[i],
+                    self.mid_channels[i - 1],
+                    t_emb_dim=None,
+                    num_heads=self.num_heads,
+                    num_layers=self.num_mid_layers,
+                    norm_channels=self.norm_channels,
+                )
+            )
+
+        self.decoder_layers = nn.ModuleList([])
+        for i in reversed(range(1, len(self.down_channels))):
+            self.decoder_layers.append(
+                UpBlock(
+                    self.down_channels[i],
+                    self.down_channels[i - 1],
+                    t_emb_dim=None,
+                    up_sample=self.down_sample[i - 1],
+                    num_heads=self.num_heads,
+                    num_layers=self.num_up_layers,
+                    attn=self.attns[i - 1],
+                    norm_channels=self.norm_channels,
+                )
+            )
+
+        self.decoder_norm_out = nn.GroupNorm(self.norm_channels, self.down_channels[0])
+        self.decoder_conv_out = nn.Conv2d(
+            self.down_channels[0], im_channels, kernel_size=3, padding=1
+        )
+
+    def encode(self, x):
+        out = self.encoder_conv_in(x)
+        for idx, down in enumerate(self.encoder_layers):
+            out = down(out)
+        for mid in self.encoder_mids:
+            out = mid(out)
+        out = self.encoder_norm_out(out)
+        out = nn.SiLU()(out)
+        out = self.encoder_conv_out(out)
+        out = self.pre_quant_conv(out)
+        mean, logvar = torch.chunk(out, 2, dim=1)
+        std = torch.exp(0.5 * logvar)
+        sample = mean + std * torch.randn(mean.shape).to(device=x.device)
+        return sample, out
+
+    def decode(self, z):
+        out = z
+        out = self.post_quant_conv(out)
+        out = self.decoder_conv_in(out)
+        for mid in self.decoder_mids:
+            out = mid(out)
+        for idx, up in enumerate(self.decoder_layers):
+            out = up(out)
+
+        out = self.decoder_norm_out(out)
+        out = nn.SiLU()(out)
+        out = self.decoder_conv_out(out)
+        return out
 
     def forward(self, x):
-        mean, log_var = self.forward_encoder(x.flatten(start_dim=1))
-        z = self.reparameterization(
-            mean, torch.exp(0.5 * log_var)
-        )  # takes exponential function (log var -> var)
-        x_hat = self.forward_decoder(z).view(-1, 1, 28, 28)
-
-        return x_hat, mean, log_var
-
-
-if __name__ == "__main__":
-    model = VAE()
-    x = torch.rand(size=(2, 28, 28))
-    print(model(x))
-    x_hat, _, _ = model(x)
-    print(x_hat.shape)
+        z, encoder_output = self.encode(x)
+        out = self.decode(z)
+        return out, encoder_output

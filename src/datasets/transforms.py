@@ -8,7 +8,7 @@ from functools import partial
 import numpy as np
 import torch
 from dect.directions import generate_multiview_directions, generate_uniform_directions
-from dect.ect import compute_ect_point_cloud, compute_ect_points
+from dect.ect import compute_ect_point_cloud
 from dect.nn import EctConfig
 from torch import nn
 
