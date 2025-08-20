@@ -5,7 +5,11 @@ import torch
 from torch_geometric.datasets import QM9
 from torch_geometric.loader import DataLoader
 
-from src.datasets.transforms import To3DNormalizedCoords, get_transform
+from src.datasets.transforms import (
+    EctChannelsTransform,
+    EctTransformConfig,
+    To3DNormalizedCoords,
+)
 
 
 @dataclass
@@ -13,6 +17,7 @@ class DataConfig:
     root: str
     raw: str
     batch_size: int
+    resolution: int
 
 
 def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
@@ -41,20 +46,44 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
     ).shuffle()
 
     tr = To3DNormalizedCoords()
-    ect_tr = get_transform()
+    ect_config = EctTransformConfig(
+        num_thetas=config.resolution,
+        resolution=config.resolution,
+        r=1,
+        scale=500,
+        ambient_dimension=3,
+        ect_type="points",
+        seed=129,
+        normalized=True,
+        structured_directions=True,
+        max_channels=5,
+    )
+    ect_tr = EctChannelsTransform(ect_config).to(device="cuda")
     res = []
     pts = []
     batch = []
     for idx, data in enumerate(dataset):
         data_new = tr(data)
-        ects = ect_tr(data_new.pos.cuda(), index=None).cpu()
+        z = data.z
+        z[z == 1] = 0
+        z[z == 6] = 1
+        z[z == 7] = 2
+        z[z == 8] = 3
+        z[z == 9] = 4
+
+        ects = ect_tr(
+            data_new.pos.cuda(),
+            # index=torch.zeros(len(data_new.pos), dtype=torch.int64).cuda(),
+            index=None,
+            channels=z.cuda(),
+        ).cpu()
         res.append(ects)
         pts.append(data_new.pos)
         batch.append(data.batch)
         if dev and idx == 256:
             break
 
-    transformed = torch.stack(res)
+    transformed = torch.vstack(res)
 
     total_el = len(transformed)
     num_train = int(0.7 * total_el)
@@ -102,10 +131,6 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
 
 
 if __name__ == "__main__":
-    config = DataConfig(
-        root="./data",
-        raw="./data/raw",
-        batch_size=64,
-    )
+    config = DataConfig(root="./data", raw="./data/raw", batch_size=64, resolution=64)
     create_dataset(config, dev=True, force_reload=False)
-    create_dataset(config, dev=False, force_reload=False)
+    # create_dataset(config, dev=False, force_reload=False)

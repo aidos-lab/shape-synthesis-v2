@@ -42,7 +42,7 @@ kaolin = { url = "https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-2.5.1_c
 dect = { git = "https://github.com/aidos-lab/dect.git" }
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/*"]
+packages = ["src"]
 
 ###########################
 

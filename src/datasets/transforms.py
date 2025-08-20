@@ -8,7 +8,7 @@ from functools import partial
 import numpy as np
 import torch
 from dect.directions import generate_multiview_directions, generate_uniform_directions
-from dect.ect import compute_ect_point_cloud
+from dect.ect import compute_ect_channels
 from dect.nn import EctConfig
 from torch import nn
 
@@ -17,11 +17,50 @@ from torch import nn
 class EctTransformConfig(EctConfig):
     resolution: int
     structured_directions: bool
+    max_channels: int
 
 
 def get_transform(config: EctTransformConfig):
     transform = EctTransform(config=config)
     return transform
+
+
+class EctChannelsTransform(nn.Module):
+    def __init__(self, config: EctTransformConfig):
+        super().__init__()
+
+        self.config = config
+
+        # Instantiate structured directions.
+        if config.structured_directions:
+            v = generate_multiview_directions(
+                config.num_thetas,
+                d=config.ambient_dimension,
+            )
+        else:
+            v = generate_uniform_directions(
+                config.num_thetas,
+                d=config.ambient_dimension,
+                seed=config.seed,
+            )
+        self.v = nn.Parameter(v, requires_grad=False)
+        self.ect_fn = partial(
+            compute_ect_channels,
+            v=self.v,
+            radius=self.config.r,
+            resolution=self.config.resolution,
+            scale=self.config.scale,
+            max_channels=self.config.max_channels,
+            normalize=False,
+        )
+
+    def forward(self, x, index, channels):
+        ect = self.ect_fn(x=x, index=index, channels=channels)
+
+        amax = torch.amax(ect, dim=(-1, -2), keepdim=True)
+        amax[amax == 0] = 1
+        ect = ect / amax
+        return ect
 
 
 class EctTransform(nn.Module):
