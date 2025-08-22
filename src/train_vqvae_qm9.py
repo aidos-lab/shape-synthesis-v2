@@ -24,7 +24,7 @@ def train(
     dataloader,
     transform,
     model,
-    lpips_model,
+    # lpips_model,
     discriminator,
     optimizer_d,
     optimizer_g,
@@ -158,8 +158,8 @@ def main(args):
     ############################################################
 
     # No need to freeze lpips as lpips.py takes care of that
-    lpips_model = LPIPS().eval()
-    lpips_model = fabric.setup(lpips_model)
+    # lpips_model = LPIPS().eval()
+    # lpips_model = fabric.setup(lpips_model)
 
     ############################################################
     ### Loss functions
@@ -179,7 +179,7 @@ def main(args):
         dataloader,
         transform,
         model,
-        lpips_model,
+        # lpips_model,
         discriminator,
         optimizer_d,
         optimizer_g,
