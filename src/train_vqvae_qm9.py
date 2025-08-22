@@ -34,14 +34,13 @@ def train(
     for epoch_idx in range(config.train.autoencoder_epochs):
         optimizer_g.zero_grad(set_to_none=False)
         optimizer_d.zero_grad(set_to_none=True)
-        for pc, _ in tqdm(dataloader):
+        for ect in tqdm(dataloader):
+            ect = ect[0].cuda()
             step_count += 1
             # Start adding the discrimminator after 1k steps.
             disc_scale_loss = 0
             if step_count > 1000:
                 disc_scale_loss = 1
-
-            ect = transform(pc).unsqueeze(1)
 
             # Fetch autoencoders output(reconstructions)
             output, _, quantize_losses = model(ect)
@@ -64,8 +63,8 @@ def train(
             )
             g_loss += disc_scale_loss * config.train.disc_weight * disc_fake_loss
 
-            lpips_loss = torch.mean(lpips_model(output, ect))
-            g_loss += config.train.perceptual_weight * lpips_loss
+            # lpips_loss = torch.mean(lpips_model(output, ect))
+            # g_loss += config.train.perceptual_weight * lpips_loss
             fabric.backward(g_loss)
             #####################################
 

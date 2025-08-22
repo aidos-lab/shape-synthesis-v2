@@ -25,3 +25,7 @@ uv run main.py
 # Models 
 
 The latent diffusion model architecture is taken from https://github.com/explainingai-code/StableDiffusion-PyTorch
+
+# Download VGG weights for LPIPS loss.
+
+https://github.com/richzhang/PerceptualSimilarity/blob/master/lpips/weights/v0.1/vgg.pth

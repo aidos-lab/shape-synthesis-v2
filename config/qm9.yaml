@@ -39,14 +39,14 @@ vae:
   down_sample : [True, True]
   attn_down : [False, False]
   norm_channels: 32
-  im_channels : 1
+  im_channels : 5
   num_heads: 16
   num_down_layers : 1
   num_mid_layers : 1
   num_up_layers : 1
 
 discriminator:
-  im_channels: 1
+  im_channels: 5
 
 train:
   seed : 1111
