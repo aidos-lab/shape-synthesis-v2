@@ -13,7 +13,7 @@ transform:
   scale: 500
   r: 1
 
-diffusion_params:
+diffusion:
   num_timesteps : 1000
   beta_start : 0.0015
   beta_end : 0.0195

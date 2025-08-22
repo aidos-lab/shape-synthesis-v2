@@ -15,7 +15,7 @@ from models.vqvae import VQVAE
 
 # Global settings.
 torch.set_float32_matmul_precision("medium")
-fabric = Fabric(accelerator="cuda", precision="bf16-mixed")
+fabric = Fabric(accelerator="cpu", precision="bf16-mixed")
 
 
 def train(
@@ -35,7 +35,7 @@ def train(
         optimizer_g.zero_grad(set_to_none=False)
         optimizer_d.zero_grad(set_to_none=True)
         for ect in tqdm(dataloader):
-            ect = ect[0].cuda()
+            ect = ect[0]  # .cuda()
             step_count += 1
             # Start adding the discrimminator after 1k steps.
             disc_scale_loss = 0
