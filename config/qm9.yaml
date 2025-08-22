@@ -9,6 +9,7 @@ transform:
   num_thetas: 64
   structured_directions: True
   ambient_dimension: 3
+  max_channels: 5
   scale: 500
   r: 1
 

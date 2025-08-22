@@ -21,7 +21,7 @@ class EctTransformConfig(EctConfig):
 
 
 def get_transform(config: EctTransformConfig):
-    transform = EctTransform(config=config)
+    transform = EctChannelsTransform(config=config)
     return transform
 
 

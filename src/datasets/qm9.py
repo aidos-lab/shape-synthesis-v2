@@ -73,8 +73,7 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
 
         ects = ect_tr(
             data_new.pos.cuda(),
-            # index=torch.zeros(len(data_new.pos), dtype=torch.int64).cuda(),
-            index=None,
+            index=torch.zeros(len(data_new.pos), dtype=torch.int64).cuda(),
             channels=z.cuda(),
         ).cpu()
         res.append(ects)

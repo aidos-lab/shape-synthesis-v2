@@ -15,13 +15,17 @@ config = DataConfig(
 create_dataset(config, dev=True)
 
 dl, _ = get_dataloaders(config, dev=True)
-for (pts,) in dl:
+for (ects,) in dl:
     break
 
 
-# |%%--%%| <dizt2YSnJE|CDRTY5vPVx>
+#|%%--%%| <dizt2YSnJE|9kMzD6tGPx>
 
-pts.shape
+ects.shape
+
+# |%%--%%| <9kMzD6tGPx|CDRTY5vPVx>
+
+plt.imshow(ects[0,2])
 
 # |%%--%%| <CDRTY5vPVx|aS2UcKw4xv>
 

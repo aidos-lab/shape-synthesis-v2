@@ -24,6 +24,7 @@ dependencies = [
     "pyqt5>=5.15.11",
     "plotly>=6.2.0",
     "numba>=0.61.2",
+    "ipython>=8.37.0",
 ]
 
 # Needs to be done later.

@@ -30,7 +30,6 @@ def train(
     recon_criterion,
     disc_criterion,
 ):
-
     step_count = 0
     for epoch_idx in range(config.train.autoencoder_epochs):
         optimizer_g.zero_grad(set_to_none=False)
@@ -95,7 +94,6 @@ def train(
 
 
 def main(args):
-
     # Parse the args
     config_path = args.config_path
     compile: bool = args.compile
@@ -181,7 +179,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for vq vae training")
     parser.add_argument(
-        "--config", dest="config_path", default="config/mnist.yaml", type=str
+        "--config", dest="config_path", default="config/qm9.yaml", type=str
     )
     parser.add_argument(
         "--compile", default=False, action="store_true", help="Compile all the models"
