@@ -6,6 +6,8 @@ mnist/
 src/models/weights/
 scratch/
 trained_models/
+vqvae_logs/
+
 
 
 

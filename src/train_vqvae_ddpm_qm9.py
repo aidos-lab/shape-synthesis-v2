@@ -14,9 +14,8 @@ from datasets.qm9 import get_dataloaders
 from src.schedulers.linear_scheduler import LinearNoiseScheduler
 from torch.optim import Adam
 from tqdm import tqdm
-from lightning.pytorch.loggers import TensorBoardLogger
 
-from src.models.unet_base import Unet
+from src.models.unet import Unet
 from src.models.vqvae import VQVAE
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -25,96 +24,91 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 def train(args):
     # Parse the args
     config_path = args.config_path
-    compile: bool = args.compile
     dev = args.dev
 
     config, _ = load_config(config_path)
 
-    # Read the config file #
-    with open(args.config_path, "r") as file:
-        try:
-            config = yaml.safe_load(file)
-        except yaml.YAMLError as exc:
-            print(exc)
-    ########################
+    # # Read the config file #
+    # with open(args.config_path, "r") as file:
+    #     try:
+    #         config = yaml.safe_load(file)
+    #     except yaml.YAMLError as exc:
+    #         print(exc)
+    # ########################
 
-    dataset_config = config["dataset_params"]
-    diffusion_model_config = config["ldm_params"]
-    autoencoder_model_config = config["autoencoder_params"]
-    train_config = config["train_params"]
+    print("im here")
+
+    # dataset_config = config["dataset_params"]
+    # diffusion_model_config = config["ldm_params"]
+    # autoencoder_model_config = config["autoencoder_params"]
+    # config.train = config["train_params"]
 
     # Create the noise scheduler
-    scheduler = LinearNoiseScheduler(config=config.diffusion)
+    scheduler = LinearNoiseScheduler(config=config.noise_scheduler)
 
     dataloader, _ = get_dataloaders(config.data, dev=dev)
 
     # Instantiate the model
     model = Unet(
-        im_channels=autoencoder_model_config["z_channels"],
-        model_config=diffusion_model_config,
+        im_channels=config.vae.z_channels,
+        model_config=config.ldm_params,
     ).to(device)
     model.train()
 
-    # Load VAE ONLY if latents are not to be used or are missing
-    if not im_dataset.use_latents:
-        print("Loading vqvae model as latents not present")
-        vae = VQVAE(
-            im_channels=dataset_config["im_channels"],
-            model_config=autoencoder_model_config,
-        ).to(device)
-        vae.eval()
+    vae = VQVAE(config.vae).to(device)
+    vae.eval()
 
-        # Load vae if found
-        if os.path.exists(
+    # Load vae if found
+    if os.path.exists(
+        os.path.join(config.train.task_name, config.train.vqvae_autoencoder_ckpt_name)
+    ):
+        print("Loaded vae checkpoint")
+        print(
             os.path.join(
-                train_config["task_name"], train_config["vqvae_autoencoder_ckpt_name"]
+                config.train.task_name,
+                config.train.vqvae_autoencoder_ckpt_name,
             )
-        ):
-            print("Loaded vae checkpoint")
-            print(
+        )
+        vae.load_state_dict(
+            torch.load(
                 os.path.join(
-                    train_config["task_name"],
-                    train_config["vqvae_autoencoder_ckpt_name"],
-                )
-            )
-            vae.load_state_dict(
-                torch.load(
-                    os.path.join(
-                        train_config["task_name"],
-                        train_config["vqvae_autoencoder_ckpt_name"],
-                    ),
-                    map_location=device,
-                    weights_only=True,
+                    config.train.task_name,
+                    config.train.vqvae_autoencoder_ckpt_name,
                 ),
-                strict=True,
-            )
+                map_location=device,
+                weights_only=True,
+            ),
+            strict=True,
+        )
 
     # Specify training parameters
-    num_epochs = train_config["ldm_epochs"]
-    optimizer = Adam(model.parameters(), lr=train_config["ldm_lr"])
+    num_epochs = config.train.ldm_epochs
+    optimizer = Adam(model.parameters(), lr=config.train.ldm_lr)
     criterion = torch.nn.MSELoss()
 
     # Run training
-    if not im_dataset.use_latents:
-        for param in vae.parameters():
-            param.requires_grad = False
+    for param in vae.parameters():
+        param.requires_grad = False
 
     for epoch_idx in range(num_epochs):
+        print(epoch_idx)
         losses = []
-        for im, _ in tqdm(data_loader):
+        for im in tqdm(dataloader):
+            im = im[0][:, :3, :, :].to(device)
             optimizer.zero_grad()
-            im = im.float().to(device)
-            if not im_dataset.use_latents:
-                with torch.no_grad():
-                    im, _ = vae.encode(im)
+            # im = im.float().to(device)
+            with torch.no_grad():
+                im, _ = vae.encode(im)
 
             # Sample random noise
             noise = torch.randn_like(im).to(device)
 
             # Sample timestep
-            t = torch.randint(0, diffusion_config["num_timesteps"], (im.shape[0],)).to(
-                device
-            )
+            t = torch.randint(
+                0,
+                config.noise_scheduler.num_timesteps,
+                (im.shape[0],),
+            ).to(device)
 
             # Add noise to images according to timestep
             noisy_im = scheduler.add_noise(im, noise, t)
@@ -128,10 +122,7 @@ def train(args):
             "Finished epoch:{} | Loss : {:.4f}".format(epoch_idx + 1, np.mean(losses))
         )
 
-        torch.save(
-            model.state_dict(),
-            os.path.join(train_config["task_name"], train_config["ldm_ckpt_name"]),
-        )
+        torch.save(model.state_dict(), "results/latent_ddpm.ckpt")
 
     print("Done Training ...")
 
@@ -139,7 +130,10 @@ def train(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for ddpm training")
     parser.add_argument(
-        "--config", dest="config_path", default="config/mnist.yaml", type=str
+        "--config", dest="config_path", default="config/qm9.yaml", type=str
+    )
+    parser.add_argument(
+        "--dev", default=False, action="store_true", help="Run a small subset."
     )
     args = parser.parse_args()
 

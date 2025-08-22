@@ -1,7 +1,17 @@
 import torch
+import json
 import torch.nn as nn
 
 from models.blocks import DownBlock, MidBlock, UpBlockUnet, get_time_embedding
+
+
+def config_to_dict(config):
+    """
+    Converts nested namespace to nested dictionary.
+    Needed for printing."""
+    return json.loads(
+        json.dumps(config, default=lambda s: vars(s)),
+    )
 
 
 class Unet(nn.Module):
@@ -12,6 +22,8 @@ class Unet(nn.Module):
 
     def __init__(self, im_channels, model_config):
         super().__init__()
+        model_config = config_to_dict(model_config)
+
         self.down_channels = model_config["down_channels"]
         self.mid_channels = model_config["mid_channels"]
         self.t_emb_dim = model_config["time_emb_dim"]

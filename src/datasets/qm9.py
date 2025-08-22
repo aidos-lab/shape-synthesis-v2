@@ -132,4 +132,4 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
 if __name__ == "__main__":
     config = DataConfig(root="./data", raw="./data/raw", batch_size=64, resolution=64)
     create_dataset(config, dev=True, force_reload=False)
-    # create_dataset(config, dev=False, force_reload=False)
+    create_dataset(config, dev=False, force_reload=False)

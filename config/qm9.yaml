@@ -13,7 +13,7 @@ transform:
   scale: 500
   r: 1
 
-diffusion:
+noise_scheduler:
   num_timesteps : 1000
   beta_start : 0.0015
   beta_end : 0.0195
@@ -39,14 +39,14 @@ vae:
   down_sample : [True, True]
   attn_down : [False, False]
   norm_channels: 32
-  im_channels : 5
+  im_channels : 3
   num_heads: 16
   num_down_layers : 1
   num_mid_layers : 1
   num_up_layers : 1
 
 discriminator:
-  im_channels: 5
+  im_channels: 3
 
 train:
   seed : 1111
@@ -60,7 +60,7 @@ train:
   perceptual_weight: 1
   kl_weight: 0.000005
   ldm_epochs : 200
-  autoencoder_epochs : 10
+  autoencoder_epochs : 100
   num_samples : 25
   num_grid_rows : 5
   ldm_lr: 0.00001

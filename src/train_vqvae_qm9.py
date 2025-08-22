@@ -24,7 +24,7 @@ def train(
     dataloader,
     transform,
     model,
-    # lpips_model,
+    lpips_model,
     discriminator,
     optimizer_d,
     optimizer_g,
@@ -33,11 +33,11 @@ def train(
     logger,
 ):
     step_count = 0
-    for epoch_idx in range(config.train.autoencoder_epochs):
+    for epoch in range(config.train.autoencoder_epochs):
         optimizer_g.zero_grad(set_to_none=False)
         optimizer_d.zero_grad(set_to_none=True)
         for ect in tqdm(dataloader):
-            ect = ect[0]  # .cuda()
+            ect = ect[0][:, :3, :, :]  # .cuda()
             step_count += 1
             # Start adding the discrimminator after 1k steps.
             disc_scale_loss = 0
@@ -65,8 +65,8 @@ def train(
             )
             g_loss += disc_scale_loss * config.train.disc_weight * disc_fake_loss
 
-            # lpips_loss = torch.mean(lpips_model(output, ect))
-            # g_loss += config.train.perceptual_weight * lpips_loss
+            lpips_loss = torch.mean(lpips_model(output, ect))
+            g_loss += config.train.perceptual_weight * lpips_loss
             fabric.backward(g_loss)
             #####################################
 
@@ -96,7 +96,8 @@ def train(
                     "disc_loss": disc_loss,
                     "g_loss": g_loss,
                     "recon_loss": recon_loss,
-                }
+                },
+                step=epoch,
             )
 
         state = {"model": model}
@@ -158,8 +159,8 @@ def main(args):
     ############################################################
 
     # No need to freeze lpips as lpips.py takes care of that
-    # lpips_model = LPIPS().eval()
-    # lpips_model = fabric.setup(lpips_model)
+    lpips_model = LPIPS().eval()
+    lpips_model = fabric.setup(lpips_model)
 
     ############################################################
     ### Loss functions
@@ -179,7 +180,7 @@ def main(args):
         dataloader,
         transform,
         model,
-        # lpips_model,
+        lpips_model,
         discriminator,
         optimizer_d,
         optimizer_g,

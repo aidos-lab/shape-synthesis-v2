@@ -3,15 +3,15 @@ import argparse
 import torch
 from lightning import seed_everything
 from lightning.fabric import Fabric
-from torch.optim import Adam
 from tqdm import tqdm
+import torchvision
 
 from configs import load_config
-from datasets.mnist import get_dataloaders
+from datasets.qm9 import get_dataloaders
 from datasets.transforms import get_transform
-from models.discriminator import Discriminator
-from models.lpips import LPIPS
 from models.vqvae import VQVAE
+
+from torchvision.utils import make_grid
 
 # Global settings.
 torch.set_float32_matmul_precision("medium")
@@ -27,21 +27,29 @@ def evaluate(
 ):
     model.eval()
 
-    for pc, _ in tqdm(dataloader):
-        ect = transform(pc).unsqueeze(1)
-
+    for ect in tqdm(dataloader):
+        ect = ect[0][:, :3, :, :]
         # Fetch autoencoders output(reconstructions)
-        output, _, quantize_losses = model(ect)
+        recon, _, quantize_losses = model(ect)
 
-        torch.save(output.detach().cpu(), "results/recon.pt")
+        torch.save(recon.detach().cpu(), "results/recon.pt")
         torch.save(ect.cpu(), "results/ect.pt")
-        torch.save(pc.cpu(), "results/pc.pt")
+        # torch.save(pc.cpu(), "results/pc.pt")
 
+        sample_size = min(8, recon.shape[0])
+        save_output = torch.clamp(recon[:sample_size], -1.0, 1.0).detach().cpu()
+        save_output = (save_output + 1) / 2
+        save_output = save_output[:, :3, :, :]
+        save_input = ((ect[:sample_size][:, :3, :, :] + 1) / 2).detach().cpu()
+
+        grid = make_grid(torch.cat([save_input, save_output], dim=0), nrow=sample_size)
+        img = torchvision.transforms.ToPILImage()(grid)
+        img.save("results/ect_recon.png")
+        img.close()
         break
 
 
 def main(args):
-
     fabric = Fabric()
     # Parse the args
     config_path = args.config_path
@@ -84,7 +92,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for vq vae training")
     parser.add_argument(
-        "--config", dest="config_path", default="config/mnist.yaml", type=str
+        "--config", dest="config_path", default="config/qm9.yaml", type=str
     )
     parser.add_argument(
         "--compile", default=False, action="store_true", help="Compile all the models"
