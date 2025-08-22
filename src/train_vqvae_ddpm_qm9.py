@@ -8,11 +8,13 @@ import os
 
 import numpy as np
 import torch
+from configs import load_config
 import yaml
 from datasets.qm9 import get_dataloaders
 from src.schedulers.linear_scheduler import LinearNoiseScheduler
 from torch.optim import Adam
 from tqdm import tqdm
+from lightning.pytorch.loggers import TensorBoardLogger
 
 from src.models.unet_base import Unet
 from src.models.vqvae import VQVAE
@@ -21,6 +23,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def train(args):
+    # Parse the args
+    config_path = args.config_path
+    compile: bool = args.compile
+    dev = args.dev
+
+    config, _ = load_config(config_path)
+
     # Read the config file #
     with open(args.config_path, "r") as file:
         try:
@@ -37,19 +46,8 @@ def train(args):
     # Create the noise scheduler
     scheduler = LinearNoiseScheduler(config=config.diffusion)
 
-    # data_loader = DataLoader(
-    #     im_dataset, batch_size=train_config["ldm_batch_size"], shuffle=True
-    # )
+    dataloader, _ = get_dataloaders(config.data, dev=dev)
 
-    config = DataConfig(
-        root="./data/ectmnist",
-        raw="./data/raw",
-        num_pts=256,
-        module="datasets.mnist",
-        batch_size=32,
-        resolution=64,
-    )
-    data_loader, _ = get_dataloaders(config, dev=False)
     # Instantiate the model
     model = Unet(
         im_channels=autoencoder_model_config["z_channels"],
@@ -144,4 +142,5 @@ if __name__ == "__main__":
         "--config", dest="config_path", default="config/mnist.yaml", type=str
     )
     args = parser.parse_args()
+
     train(args)

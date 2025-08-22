@@ -3,6 +3,7 @@ import argparse
 import torch
 from lightning import seed_everything
 from lightning.fabric import Fabric
+from lightning.pytorch.loggers import TensorBoardLogger
 from torch.optim import Adam
 from tqdm import tqdm
 
@@ -15,7 +16,7 @@ from models.vqvae import VQVAE
 
 # Global settings.
 torch.set_float32_matmul_precision("medium")
-fabric = Fabric(accelerator="cpu", precision="bf16-mixed")
+fabric = Fabric(accelerator="cuda", precision="bf16-mixed")
 
 
 def train(
@@ -29,6 +30,7 @@ def train(
     optimizer_g,
     recon_criterion,
     disc_criterion,
+    logger,
 ):
     step_count = 0
     for epoch_idx in range(config.train.autoencoder_epochs):
@@ -88,6 +90,15 @@ def train(
             optimizer_g.step()
             optimizer_g.zero_grad()
 
+            # Logg stuff
+            logger.log_metrics(
+                {
+                    "disc_loss": disc_loss,
+                    "g_loss": g_loss,
+                    "recon_loss": recon_loss,
+                }
+            )
+
         state = {"model": model}
         fabric.save("trained_models/vqvae.ckpt", state)
 
@@ -100,6 +111,8 @@ def main(args):
 
     config, _ = load_config(config_path)
     seed_everything(config.train.seed)
+
+    logger = TensorBoardLogger(save_dir="vqvae_logs")
 
     ###################################################################
     ### Setup models
@@ -172,6 +185,7 @@ def main(args):
         optimizer_g,
         loss_fn_recon,
         loss_fn_disc,
+        logger,
     )
 
 
