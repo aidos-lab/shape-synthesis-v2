@@ -132,9 +132,10 @@ class LPIPS(nn.Module):
 
         # Compute Square of Difference for each layer output
         for kk in range(self.L):
-            feats0[kk], feats1[kk] = torch.nn.functional.normalize(
-                outs0[kk], dim=1
-            ), torch.nn.functional.normalize(outs1[kk])
+            feats0[kk], feats1[kk] = (
+                torch.nn.functional.normalize(outs0[kk], dim=1),
+                torch.nn.functional.normalize(outs1[kk]),
+            )
             diffs[kk] = (feats0[kk] - feats1[kk]) ** 2
         ########################
 
@@ -165,7 +166,8 @@ class ScalingLayer(nn.Module):
         )
 
     def forward(self, inp):
-        return (inp - self.shift) / self.scale
+        # return (inp - self.shift) / self.scale
+        return inp
 
 
 class NetLinLayer(nn.Module):

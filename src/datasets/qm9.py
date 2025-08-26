@@ -76,6 +76,7 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
             index=torch.zeros(len(data_new.pos), dtype=torch.int64).cuda(),
             channels=z.cuda(),
         ).cpu()
+        ects = 2 * ects - 1
         res.append(ects)
         pts.append(data_new.pos)
         batch.append(data.batch)
@@ -115,7 +116,9 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         train_ds,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=0,
+        num_workers=4,
+        pin_memory=True,
+        persistent_workers=True,
         drop_last=True if not dev else False,
     )
 
@@ -123,7 +126,9 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         test_ds,
         batch_size=config.batch_size,
         shuffle=False,
-        num_workers=0,
+        num_workers=4,
+        pin_memory=True,
+        persistent_workers=True,
         drop_last=False,
     )
     return train_dl, test_dl

@@ -16,7 +16,7 @@ from models.vqvae import VQVAE
 
 # Global settings.
 torch.set_float32_matmul_precision("medium")
-fabric = Fabric(accelerator="cuda", precision="bf16-mixed")
+fabric = Fabric(accelerator="cuda", precision="16-mixed")
 
 
 def train(

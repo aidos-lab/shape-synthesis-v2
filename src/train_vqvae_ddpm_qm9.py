@@ -28,14 +28,6 @@ def train(args):
 
     config, _ = load_config(config_path)
 
-    # # Read the config file #
-    # with open(args.config_path, "r") as file:
-    #     try:
-    #         config = yaml.safe_load(file)
-    #     except yaml.YAMLError as exc:
-    #         print(exc)
-    # ########################
-
     print("im here")
 
     # dataset_config = config["dataset_params"]
