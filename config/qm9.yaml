@@ -32,8 +32,8 @@ ldm_params:
   num_up_layers: 2
 
 vae:
-  z_channels: 3
-  codebook_size : 20
+  z_channels: 6
+  codebook_size : 64
   down_channels : [32, 64, 128]
   mid_channels : [128, 128]
   down_sample : [True, True]

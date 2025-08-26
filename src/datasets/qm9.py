@@ -116,9 +116,8 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         train_ds,
         batch_size=config.batch_size,
         shuffle=True,
-        num_workers=4,
-        pin_memory=True,
-        persistent_workers=True,
+        num_workers=0,
+        # persistent_workers=True,
         drop_last=True if not dev else False,
     )
 

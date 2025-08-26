@@ -1,13 +1,14 @@
-import torch
 import numpy as np
+import torch
 
 
-class LinearNoiseScheduler:
+class LinearNoiseScheduler(torch.nn.Module):
     r"""
     Class for the linear noise scheduler that is used in DDPM.
     """
 
     def __init__(self, config):
+        super().__init__()
         self.num_timesteps = config.num_timesteps
         self.beta_start = config.beta_start
         self.beta_end = config.beta_end
@@ -67,10 +68,8 @@ class LinearNoiseScheduler:
         ) / torch.sqrt(self.alpha_cum_prod.to(xt.device)[t])
         x0 = torch.clamp(x0, -1.0, 1.0)
 
-        mean = (
-            xt
-            - ((self.betas.to(xt.device)[t]) * noise_pred)
-            / (self.sqrt_one_minus_alpha_cum_prod.to(xt.device)[t])
+        mean = xt - ((self.betas.to(xt.device)[t]) * noise_pred) / (
+            self.sqrt_one_minus_alpha_cum_prod.to(xt.device)[t]
         )
         mean = mean / torch.sqrt(self.alphas.to(xt.device)[t])
 

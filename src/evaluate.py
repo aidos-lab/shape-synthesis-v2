@@ -1,17 +1,16 @@
 import argparse
 
 import torch
+import torchvision
 from lightning import seed_everything
 from lightning.fabric import Fabric
+from torchvision.utils import make_grid
 from tqdm import tqdm
-import torchvision
 
 from configs import load_config
 from datasets.qm9 import get_dataloaders
 from datasets.transforms import get_transform
 from models.vqvae import VQVAE
-
-from torchvision.utils import make_grid
 
 # Global settings.
 torch.set_float32_matmul_precision("medium")
@@ -31,16 +30,21 @@ def evaluate(
         ect = ect[0][:, :3, :, :]
         # Fetch autoencoders output(reconstructions)
         recon, _, quantize_losses = model(ect)
+        offset = 8
 
         torch.save(recon.detach().cpu(), "results/recon.pt")
         torch.save(ect.cpu(), "results/ect.pt")
         # torch.save(pc.cpu(), "results/pc.pt")
 
         sample_size = min(8, recon.shape[0])
-        save_output = torch.clamp(recon[:sample_size], -1.0, 1.0).detach().cpu()
+        save_output = (
+            torch.clamp(recon[offset : offset + sample_size], -1.0, 1.0).detach().cpu()
+        )
         save_output = (save_output + 1) / 2
         save_output = save_output[:, :3, :, :]
-        save_input = ((ect[:sample_size][:, :3, :, :] + 1) / 2).detach().cpu()
+        save_input = (
+            ((ect[offset : offset + sample_size][:, :3, :, :] + 1) / 2).detach().cpu()
+        )
 
         grid = make_grid(torch.cat([save_input, save_output], dim=0), nrow=sample_size)
         img = torchvision.transforms.ToPILImage()(grid)
@@ -74,6 +78,9 @@ def main(args):
 
     # Load the model
     model = VQVAE(config.vae).to("cuda")
+
+    # model.load_state_dict(torch.load("trained_models/vqvae.ckpt"), strict=False)
+
     state = {"model": model}
     fabric.load("trained_models/vqvae.ckpt", state)
 
