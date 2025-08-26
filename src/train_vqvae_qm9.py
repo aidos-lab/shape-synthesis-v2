@@ -38,7 +38,9 @@ def train(
         optimizer_d.zero_grad(set_to_none=True)
         for ect in tqdm(dataloader):
             ect = ect[0][:, :3, :, :]  # .cuda()
+
             step_count += 1
+
             # Start adding the discrimminator after 1k steps.
             disc_scale_loss = 0
             if step_count > 1000:

@@ -19,7 +19,39 @@ for (ects,) in dl:
     break
 
 
-#|%%--%%| <dizt2YSnJE|9kMzD6tGPx>
+#|%%--%%| <dizt2YSnJE|NFzB0xTiI1>
+
+from torch_geometric.datasets import QM9
+
+# Download the full QM9 dataset.
+dataset = QM9(
+    root="data",
+    force_reload=False,
+)
+
+dataset.pos.shape
+
+#|%%--%%| <NFzB0xTiI1|ubT5gwXQm9>
+
+x = dataset.pos 
+radii = []
+
+for data in dataset: 
+    radii.append(data.pos.norm(dim=-1).max())
+
+
+#|%%--%%| <ubT5gwXQm9|7NAroAXTuG>
+
+import torch
+
+r = torch.stack(radii).numpy()
+
+# Max radius is 11. 
+plt.hist(r)
+
+
+
+#|%%--%%| <7NAroAXTuG|9kMzD6tGPx>
 
 ects.shape
 

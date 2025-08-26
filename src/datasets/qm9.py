@@ -116,6 +116,7 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
         batch_size=config.batch_size,
         shuffle=True,
         num_workers=0,
+        # persistent_workers=True,
         drop_last=True if not dev else False,
     )
 
