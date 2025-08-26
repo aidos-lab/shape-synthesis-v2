@@ -17,7 +17,7 @@ torch.set_float32_matmul_precision("medium")
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 128  # Abbreviated to R
+RESOLUTION = 64  # Abbreviated to R
 RADIUS = 1.0  # Abbreviated to r, fixed to 1 for now.
 SCALE = 200  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
 DEVICE = "cuda"  # Device to compute on.
@@ -81,11 +81,11 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
                 max_channels=5,
             )
             .to(DEVICE)
-            .view(-1, 128, 128)
+            .view(-1, RESOLUTION, RESOLUTION)
         )
 
         pts, mask = reconstruct_point_cloud(
-            ect, batched_recon=batched_recon, width=9, threshold=0.5
+            ect, batched_recon=batched_recon, width=3, threshold=0.5
         )
         # recon_pts.append(pts * 11)
         # recon_mask.append(mask)
