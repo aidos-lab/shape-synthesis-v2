@@ -15,12 +15,12 @@ torch.set_float32_matmul_precision("medium")
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 128  # Abbreviated to R
+RESOLUTION = 150  # Abbreviated to R
 RADIUS = 1.0  # Abbreviated to r, fixed to 1 for now.
-SCALE = 100  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
+SCALE = 200  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
 DEVICE = "cuda"  # Device to compute on.
 WIDTH = 3
-THRESHOLD = 0.0
+THRESHOLD = 0.7
 GLOBAL_SCALE = 6
 #######################################################################
 
@@ -59,6 +59,10 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
     orig_pts = []
     orig_z = []
 
+    correct = 0
+    too_few = 0
+    too_many = 0
+    total = 0
     for batch_idx, batch in enumerate(dl):
         if batch_idx % 100 == 0:
             print(batch_idx)
@@ -87,12 +91,20 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
             .view(-1, RESOLUTION, RESOLUTION)
         )
 
-        r_pts, r_z, _ = reconstruct_point_cloud(
+        r_pts, r_z, density = reconstruct_point_cloud(
             ect,
             batched_recon=batched_recon,
             width=WIDTH,
             threshold=THRESHOLD,
         )
+
+        total += 1
+        if r_pts.shape[0] == batch.pos.shape[0]:
+            correct += 1
+        if r_pts.shape[0] < batch.pos.shape[0]:
+            too_few += 1
+        if r_pts.shape[0] > batch.pos.shape[0]:
+            too_many += 1
 
         recon_pts.append((r_pts * GLOBAL_SCALE + m).cpu())
         recon_z.append((r_z + 5 * len(batch) * batch_idx).cpu())
@@ -100,13 +112,17 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
         orig_z.append((z + 5 * len(batch) * batch_idx).cpu())
         orig_pts.append(batch.pos.cpu())
 
-        if args.dev and batch_idx == 130:
+        if args.dev and batch_idx == 1000:
             break
 
+    print(f"Correct:{correct / total}")
+    print(f"Too Few:{too_few / total}")
+    print(f"Too many:{too_many / total}")
     torch.save(torch.vstack(recon_pts), "results/recon_pts.pt")
     torch.save(torch.hstack(recon_z), "results/recon_z.pt")
     torch.save(torch.vstack(orig_pts), "results/orig_pts.pt")
     torch.save(torch.hstack(orig_z), "results/orig_z.pt")
+    torch.save(density, "results/density.pt")
 
 
 if __name__ == "__main__":

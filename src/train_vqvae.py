@@ -46,8 +46,9 @@ def train(
                 state,
             )
 
-        for ect in tqdm(dataloader):
-            ect = ect[0][:, :3, :, :]  # .cuda()
+        for (ect,) in tqdm(dataloader):
+            breakpoint()
+            ect = ect[0]
 
             step_count += 1
 

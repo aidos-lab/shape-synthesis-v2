@@ -2,13 +2,10 @@ from __future__ import absolute_import
 
 from collections import namedtuple
 
-import numpy as np
 import torch
 import torch.nn
 import torch.nn as nn
-import torch.nn.init as init
 import torchvision
-from torch.autograd import Variable
 
 # Taken from https://github.com/richzhang/PerceptualSimilarity/blob/master/lpips/lpips.py
 
@@ -123,7 +120,6 @@ class LPIPS(nn.Module):
 
         # Normalize the inputs according to imagenet normalization
         in0_input, in1_input = self.scaling_layer(in0), self.scaling_layer(in1)
-        # in0_input, in1_input = in0, in1
         ########################
 
         # Get VGG outputs for image0 and image1

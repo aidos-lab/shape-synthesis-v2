@@ -45,7 +45,6 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
         force_reload=force_reload,
     ).shuffle()
 
-    tr = To3DNormalizedCoords()
     ect_config = EctTransformConfig(
         num_thetas=config.resolution,
         resolution=config.resolution,
@@ -63,7 +62,6 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
     pts = []
     batch = []
     for idx, data in enumerate(dataset):
-        data_new = tr(data)
         z = data.z
         z[z == 1] = 0
         z[z == 6] = 1
@@ -71,16 +69,17 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
         z[z == 8] = 3
         z[z == 9] = 4
 
+        x = data.pos.cuda()
+        x = (x - x.mean(axis=0)) / 8
         ects = ect_tr(
-            data_new.pos.cuda(),
-            index=torch.zeros(len(data_new.pos), dtype=torch.int64).cuda(),
+            x,
+            index=torch.zeros(len(x), dtype=torch.int64).cuda(),
             channels=z.cuda(),
-        ).cpu()
-        ects = 2 * ects - 1
+        ).cpu()[:, 1:4, :, :]
         res.append(ects)
-        pts.append(data_new.pos)
+        pts.append(x)
         batch.append(data.batch)
-        if dev and idx == 256:
+        if dev and idx == 8:
             break
 
     transformed = torch.vstack(res)
