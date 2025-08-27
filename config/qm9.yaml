@@ -2,7 +2,15 @@ data:
   module: datasets.qm9
   root: data
   raw: data/raw
-  batch_size: 32
+  batch_size: 64
+
+trainer: 
+  vqvae_checkpoint: vqvae.ckpt
+  ddpm_checkpoint: ddpm.ckpt
+  checkpoint_interval: 10
+  log_dir: logs
+  precision: 16-mixed
+  accelerator: cuda
 
 transform: 
   resolution: 64
@@ -32,7 +40,8 @@ ldm_params:
   num_up_layers: 2
 
 vae:
-  z_channels: 6
+  num_epochs : 100
+  z_channels: 8
   codebook_size : 64
   down_channels : [32, 64, 128]
   mid_channels : [128, 128]
@@ -50,9 +59,6 @@ discriminator:
 
 train:
   seed : 1111
-  task_name: 'mnist'
-  ldm_batch_size: 64
-  autoencoder_batch_size: 64
   disc_start: 1000
   disc_weight: 0.5
   codebook_weight: 1
@@ -60,7 +66,6 @@ train:
   perceptual_weight: 1
   kl_weight: 0.000005
   ldm_epochs : 200
-  autoencoder_epochs : 100
   num_samples : 25
   num_grid_rows : 5
   ldm_lr: 0.00001

@@ -9,20 +9,18 @@ from tqdm import tqdm
 
 from configs import load_config
 from datasets.qm9 import get_dataloaders
-from datasets.transforms import get_transform
 from models.discriminator import Discriminator
 from models.lpips import LPIPS
 from models.vqvae import VQVAE
 
 # Global settings.
 torch.set_float32_matmul_precision("medium")
-fabric = Fabric(accelerator="cuda", precision="16-mixed")
 
 
 def train(
     config,
+    fabric,
     dataloader,
-    transform,
     model,
     lpips_model,
     discriminator,
@@ -33,9 +31,21 @@ def train(
     logger,
 ):
     step_count = 0
-    for epoch in range(config.train.autoencoder_epochs):
+    for epoch in range(config.trainer.epochs):
         optimizer_g.zero_grad(set_to_none=False)
         optimizer_d.zero_grad(set_to_none=True)
+
+        # Save model.
+        if epoch % config.trainer.checkpoint_interval == 0:
+            state = {"model": model}
+            print(
+                f"{config.trainer.checkpoint_dir}/{config.trainer.vqvae_checkpoint}",
+            )
+            fabric.save(
+                f"{config.trainer.checkpoint_dir}/{config.trainer.vqvae_checkpoint}",
+                state,
+            )
+
         for ect in tqdm(dataloader):
             ect = ect[0][:, :3, :, :]  # .cuda()
 
@@ -59,7 +69,6 @@ def train(
             )
 
             # Adversarial loss only if disc_step_start steps passed
-            # if step_count > disc_step_start:
             disc_fake_pred = discriminator(output)
             disc_fake_loss = disc_criterion(
                 disc_fake_pred,
@@ -92,7 +101,7 @@ def train(
             optimizer_g.step()
             optimizer_g.zero_grad()
 
-            # Logg stuff
+            # Logg metrics.
             logger.log_metrics(
                 {
                     "disc_loss": disc_loss,
@@ -102,9 +111,6 @@ def train(
                 step=epoch,
             )
 
-        state = {"model": model}
-        fabric.save("trained_models/vqvae.ckpt", state)
-
 
 def main(args):
     # Parse the args
@@ -113,22 +119,32 @@ def main(args):
     dev = args.dev
 
     config, _ = load_config(config_path)
-    seed_everything(config.train.seed)
 
-    logger = TensorBoardLogger(save_dir="vqvae_logs")
+    ##########################################################
+    ### Inject dev.
+    ##########################################################
 
-    ###################################################################
-    ### Setup models
-    ###################################################################
+    if dev:
+        config.trainer.epochs = 2
+        config.trainer.checkpoint_dir = "trained_models_dev"
 
+    ##########################################################
+    ### Load all assets
+    ##########################################################
+
+    fabric = Fabric(
+        accelerator=config.trainer.accelerator,
+        precision=config.trainer.precision,
+    )
+
+    seed_everything(config.trainer.seed)
+
+    # Logging
+    logger = TensorBoardLogger(save_dir=config.trainer.log_dir)
+
+    # Dataloaders
     dataloader, _ = get_dataloaders(config.data, dev=dev)
     dataloader = fabric.setup_dataloaders(dataloader)
-
-    # Transforms an ect to an image at runtime.
-    transform = get_transform(config.transform)
-    if compile:
-        transform = torch.compile(transform)
-    transform = fabric.setup_module(transform)
 
     # Create the model and dataset.
     model = VQVAE(config.vae)
@@ -136,30 +152,24 @@ def main(args):
         model = torch.compile(model)
     optimizer_g = Adam(
         model.parameters(),
-        lr=config.train.autoencoder_lr,
+        lr=config.trainer.lr,
         betas=(0.5, 0.999),
     )
     model, optimizer_g = fabric.setup(model, optimizer_g)
 
-    ############################################################
-    ### Discrimminators
-    ############################################################
-
+    # Discrimminator
     discriminator = Discriminator(config.discriminator)
     if compile:
         discriminator = torch.compile(discriminator)
 
     optimizer_d = Adam(
         discriminator.parameters(),
-        lr=config.train.autoencoder_lr,
+        lr=config.trainer.lr,
         betas=(0.5, 0.999),
     )
     discriminator, optimizer_d = fabric.setup(discriminator, optimizer_d)
 
-    ############################################################
-    ### LPIPS
-    ############################################################
-
+    # LPIPS
     # No need to freeze lpips as lpips.py takes care of that
     lpips_model = LPIPS().eval()
     lpips_model = fabric.setup(lpips_model)
@@ -174,13 +184,13 @@ def main(args):
     loss_fn_disc = torch.nn.MSELoss()
 
     ##########################################################
-    ### Start the training.
+    ### start the training.
     ##########################################################
 
     train(
         config,
+        fabric,
         dataloader,
-        transform,
         model,
         lpips_model,
         discriminator,
@@ -193,15 +203,26 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Arguments for vq vae training")
-    parser.add_argument(
-        "--config", dest="config_path", default="config/qm9.yaml", type=str
+    parser = argparse.ArgumentParser(
+        description="Arguments for vq vae training",
     )
     parser.add_argument(
-        "--compile", default=False, action="store_true", help="Compile all the models"
+        "--config",
+        dest="config_path",
+        default="config/vqvae_qm9.yaml",
+        type=str,
     )
     parser.add_argument(
-        "--dev", default=False, action="store_true", help="Run a small subset."
+        "--compile",
+        default=False,
+        action="store_true",
+        help="Compile all the models",
+    )
+    parser.add_argument(
+        "--dev",
+        default=False,
+        action="store_true",
+        help="Run a small subset.",
     )
     args = parser.parse_args()
     main(args)

@@ -4,7 +4,6 @@ Source:
 """
 
 import argparse
-import os
 
 import numpy as np
 import torch
@@ -14,7 +13,6 @@ from tqdm import tqdm
 
 from configs import load_config
 from datasets.qm9 import get_dataloaders
-from src.models import vqvae
 from src.models.unet import Unet
 from src.models.vqvae import VQVAE
 from src.schedulers.linear_scheduler import LinearNoiseScheduler

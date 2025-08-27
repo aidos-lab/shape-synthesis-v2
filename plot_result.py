@@ -18,11 +18,6 @@ recon_z = torch.load("./results/recon_z_final.pt")
 orig_pts = torch.load("./results/orig_pts_final.pt")
 orig_z = torch.load("./results/orig_z_final.pt")
 
-print(orig_z)
-print(orig_pts)
-print(recon_z)
-print(recon_pts)
-
 
 orig_z, idxs_orig = torch.sort(orig_z)
 batched_orig_pts, _ = to_dense_batch(
@@ -32,21 +27,10 @@ recon_z, idxs_recon = torch.sort(recon_z)
 batched_recon_pts, _ = to_dense_batch(
     recon_pts[idxs_recon], recon_z, max_num_nodes=30, fill_value=11
 )
-print(batched_recon_pts.shape)
-
-# |%%--%%| <KuCf0w9t4Q|LAVOKcKo6t>
-
-# density = torch.load("results/density.pt")
-# density.shape
-# plotter = pv.Plotter()
-# plotter.add_volume(density[0].cpu().squeeze().numpy(), opacity="sigmoid_6")
-# plotter.show()
 
 
 # # |%%--%%| <LAVOKcKo6t|H0RB36qHOI>
 
-
-print(batched_recon_pts.shape)
 batch_idx = 8
 plotter = pv.Plotter(shape=(1, 3))
 

@@ -1,0 +1,52 @@
+data: 
+  module: datasets.qm9
+  root: data
+  raw: data/raw
+  batch_size: 64
+
+trainer: 
+  seed : 1111
+  checkpoint_dir: trained_models
+  vqvae_checkpoint: vqvae.ckpt
+  checkpoint_interval: 10
+  log_dir: logs
+  precision: 16-mixed
+  accelerator: cuda
+  epochs : 100
+  lr: 0.0001
+
+transform: 
+  resolution: 64
+  num_thetas: 64
+  structured_directions: True
+  ambient_dimension: 3
+  max_channels: 5
+  scale: 500
+  r: 1
+
+
+vae:
+  z_channels: 8
+  codebook_size : 64
+  down_channels : [32, 64, 128]
+  mid_channels : [128, 128]
+  down_sample : [True, True]
+  attn_down : [False, False]
+  norm_channels: 32
+  im_channels : 3
+  num_heads: 16
+  num_down_layers : 1
+  num_mid_layers : 1
+  num_up_layers : 1
+
+discriminator:
+  im_channels: 3
+
+train:
+  disc_start: 1000
+  disc_weight: 0.5
+  codebook_weight: 1
+  commitment_beta: 0.2
+  perceptual_weight: 1
+  kl_weight: 0.000005
+  save_latents : False
