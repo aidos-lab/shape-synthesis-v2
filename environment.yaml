@@ -1,0 +1,20 @@
+name: molecule-generation
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - scikit-learn
+  # PyTorch core + CUDA (will pick latest matching CUDA 12.x toolkits)
+  - pytorch
+  - torchvision
+  - pytorch-cuda=12.4
+  - pip:
+      - torch-geometric
+      - lightning
+      - tensorboard
+      - dect @ git+https://github.com/aidos-lab/dect.git
