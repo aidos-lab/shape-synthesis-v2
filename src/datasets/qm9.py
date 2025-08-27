@@ -95,7 +95,7 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
     qm9_val = transformed[-num_val:]
 
     torch.save(qm9_train, f"{path}/train.pt")
-    torch.save(qm9_val, f"{path}/val.pt")
+    # torch.save(qm9_val, f"{path}/val.pt")
     torch.save(qm9_test, f"{path}/test.pt")
 
 
@@ -105,9 +105,9 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
     dataset_type = "dev" if dev else "prod"
     path = f"{config.root}/qm9/{dataset_type}"
 
-    train_ds = torch.load(f"{path}/train.pt", weights_only=True).cpu()
+    train_ds = torch.load(f"{path}/train.pt", weights_only=False).cpu()
     # val_ds = torch.load(f"{path}/val.pt", weights_only=True)
-    test_ds = torch.load(f"{path}/test.pt", weights_only=True).cpu()
+    test_ds = torch.load(f"{path}/test.pt", weights_only=False).cpu()
 
     train_ds = torch.utils.data.TensorDataset(train_ds)
     test_ds = torch.utils.data.TensorDataset(test_ds)
@@ -136,4 +136,4 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
 if __name__ == "__main__":
     config = DataConfig(root="./data", raw="./data/raw", batch_size=64, resolution=64)
     create_dataset(config, dev=True, force_reload=False)
-    create_dataset(config, dev=False, force_reload=False)
+    # create_dataset(config, dev=False, force_reload=False)

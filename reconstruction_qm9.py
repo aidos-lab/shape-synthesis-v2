@@ -6,12 +6,10 @@ import numpy as np
 import torch
 import torch_geometric
 from dect.directions import generate_uniform_directions
-from torch.profiler import ProfilerActivity, profile
 from torch_geometric.datasets import QM9
-from torch_geometric.utils import to_dense_batch
 
 from custom_ect import compute_ect_channels
-from src.inversion.fbp_improved import gather_indices, get_grid, reconstruct_point_cloud
+from src.inversion.fbp import gather_indices, get_grid, reconstruct_point_cloud
 
 torch.set_float32_matmul_precision("medium")
 
@@ -101,21 +99,14 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
 
         orig_z.append((z + 5 * len(batch) * batch_idx).cpu())
         orig_pts.append(batch.pos.cpu())
-        # print("Original")
-        # print(pos)
-        # print(z)
-        # print("Reconstructed")
-        # print(r_pts)
-        # print(r_z)
 
         if args.dev and batch_idx == 130:
             break
 
-    torch.save(torch.vstack(recon_pts), f"results/recon_pts.pt")
-    torch.save(torch.hstack(recon_z), f"results/recon_z.pt")
-    torch.save(torch.vstack(orig_pts), f"results/orig_pts.pt")
-    torch.save(torch.hstack(orig_z), f"results/orig_z.pt")
-    # torch.save(density, "results/density.pt")
+    torch.save(torch.vstack(recon_pts), "results/recon_pts.pt")
+    torch.save(torch.hstack(recon_z), "results/recon_z.pt")
+    torch.save(torch.vstack(orig_pts), "results/orig_pts.pt")
+    torch.save(torch.hstack(orig_z), "results/orig_z.pt")
 
 
 if __name__ == "__main__":
