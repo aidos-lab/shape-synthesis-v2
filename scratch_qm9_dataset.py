@@ -1,9 +1,11 @@
-%load_ext autoreload
-%autoreload 2
 import matplotlib.pyplot as plt
 from dect.directions import generate_2d_directions
 
-from src.datasets.qm9 import DataConfig, create_dataset, get_dataloaders
+dataset = QM9(
+    root="data",
+    force_reload=False,
+)
+
 
 config = DataConfig(
     root="./data",
@@ -19,7 +21,7 @@ for (ects,) in dl:
     break
 
 
-#|%%--%%| <dizt2YSnJE|NFzB0xTiI1>
+# |%%--%%| <dizt2YSnJE|NFzB0xTiI1>
 
 from torch_geometric.datasets import QM9
 
@@ -31,33 +33,32 @@ dataset = QM9(
 
 dataset.pos.shape
 
-#|%%--%%| <NFzB0xTiI1|ubT5gwXQm9>
+# |%%--%%| <NFzB0xTiI1|ubT5gwXQm9>
 
-x = dataset.pos 
+x = dataset.pos
 radii = []
 
-for data in dataset: 
+for data in dataset:
     radii.append(data.pos.norm(dim=-1).max())
 
 
-#|%%--%%| <ubT5gwXQm9|7NAroAXTuG>
+# |%%--%%| <ubT5gwXQm9|7NAroAXTuG>
 
 import torch
 
 r = torch.stack(radii).numpy()
 
-# Max radius is 11. 
+# Max radius is 11.
 plt.hist(r)
 
 
-
-#|%%--%%| <7NAroAXTuG|9kMzD6tGPx>
+# |%%--%%| <7NAroAXTuG|9kMzD6tGPx>
 
 ects.shape
 
 # |%%--%%| <9kMzD6tGPx|CDRTY5vPVx>
 
-plt.imshow(ects[0,2])
+plt.imshow(ects[0, 2])
 
 # |%%--%%| <CDRTY5vPVx|aS2UcKw4xv>
 

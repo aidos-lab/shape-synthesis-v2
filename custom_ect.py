@@ -44,10 +44,10 @@ def compute_ect_channels(
 
     # Compute maximum channels.
     if max_channels is None:
-        max_channels = int(channels.max()) + 1
+        max_channels = (channels.max()).to(torch.int64) + 1
 
     if index is not None:
-        batch_len = int(index.max() + 1)
+        batch_len = (index.max() + 1).to(torch.int64)
     else:
         batch_len = 1
         index = torch.zeros(

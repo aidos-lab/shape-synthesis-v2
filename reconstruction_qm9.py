@@ -17,12 +17,14 @@ torch.set_float32_matmul_precision("medium")
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 64  # Abbreviated to R
+RESOLUTION = 128  # Abbreviated to R
 RADIUS = 1.0  # Abbreviated to r, fixed to 1 for now.
-SCALE = 200  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
+SCALE = 100  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
 DEVICE = "cuda"  # Device to compute on.
+WIDTH = 3
+THRESHOLD = 0.0
+GLOBAL_SCALE = 6
 #######################################################################
-
 
 #########################################################################################################
 #### Reconstruct
@@ -51,27 +53,30 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
         force_reload=False,
     )
 
-    dl = torch_geometric.loader.DataLoader(dataset, batch_size=4)
+    dl = torch_geometric.loader.DataLoader(dataset, batch_size=1)
 
     # Start reconstruction.
     recon_pts = []
-    recon_mask = []
+    recon_z = []
     orig_pts = []
-    orig_mask = []
+    orig_z = []
 
     for batch_idx, batch in enumerate(dl):
-        print(batch_idx)
+        if batch_idx % 100 == 0:
+            print(batch_idx)
         batch.to(DEVICE)
-        z = batch.z
+        z = batch.z.clone()
         z[z == 1] = 0
         z[z == 6] = 1
         z[z == 7] = 2
         z[z == 8] = 3
         z[z == 9] = 4
 
+        m = batch.pos.mean(axis=0)
+        pos = (batch.pos - m) / GLOBAL_SCALE
         ect = (
             compute_ect_channels(
-                batch.pos / 11,
+                pos,
                 v,
                 radius=RADIUS,
                 scale=SCALE,
@@ -84,32 +89,33 @@ def main(args, compute_ect_channels, reconstruct_point_cloud):
             .view(-1, RESOLUTION, RESOLUTION)
         )
 
-        pts, mask = reconstruct_point_cloud(
-            ect, batched_recon=batched_recon, width=3, threshold=0.5
+        r_pts, r_z, _ = reconstruct_point_cloud(
+            ect,
+            batched_recon=batched_recon,
+            width=WIDTH,
+            threshold=THRESHOLD,
         )
-        # recon_pts.append(pts * 11)
-        # recon_mask.append(mask)
-        #
-        # b = batch.batch * 5 + z
-        # b = torch.hstack([b, torch.tensor(19).to(DEVICE)])
-        # pos = torch.vstack([batch.pos, torch.tensor([11, 11, 11]).to(DEVICE)])
-        #
-        # values, indices = torch.sort(b)
-        #
-        # p, m = to_dense_batch(pos[indices], values, max_num_nodes=30)
-        #
-        # m = (p.norm(dim=-1) < 11) & m
-        #
-        # orig_mask.append(m)
-        # orig_pts.append(p)
-        #
-        # if args.dev and batch_idx == 100:
-        #     break
 
-    # torch.save(torch.vstack(recon_pts), f"results/recon_pts.pt")
-    # torch.save(torch.vstack(recon_mask), f"results/recon_mask.pt")
-    # torch.save(torch.vstack(orig_mask), f"results/orig_mask.pt")
-    # torch.save(torch.vstack(orig_pts), f"results/orig_pts.pt")
+        recon_pts.append((r_pts * GLOBAL_SCALE + m).cpu())
+        recon_z.append((r_z + 5 * len(batch) * batch_idx).cpu())
+
+        orig_z.append((z + 5 * len(batch) * batch_idx).cpu())
+        orig_pts.append(batch.pos.cpu())
+        # print("Original")
+        # print(pos)
+        # print(z)
+        # print("Reconstructed")
+        # print(r_pts)
+        # print(r_z)
+
+        if args.dev and batch_idx == 130:
+            break
+
+    torch.save(torch.vstack(recon_pts), f"results/recon_pts.pt")
+    torch.save(torch.hstack(recon_z), f"results/recon_z.pt")
+    torch.save(torch.vstack(orig_pts), f"results/orig_pts.pt")
+    torch.save(torch.hstack(orig_z), f"results/orig_z.pt")
+    # torch.save(density, "results/density.pt")
 
 
 if __name__ == "__main__":

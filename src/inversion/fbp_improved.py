@@ -53,4 +53,4 @@ def reconstruct_point_cloud(ect, threshold, width, batched_recon):
     coords, batch_idx = peak_finder_3d(res_plot, width=width)
     linspace = torch.linspace(-1, 1, resolution, device=ect.device)
     pts = linspace[coords.to(torch.int64)]
-    return pts, batch_idx
+    return pts, batch_idx, res_plot
