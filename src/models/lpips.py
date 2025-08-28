@@ -163,8 +163,7 @@ class ScalingLayer(nn.Module):
         )
 
     def forward(self, inp):
-        # return (inp - self.shift) / self.scale
-        return inp
+        return (inp - self.shift) / self.scale
 
 
 class NetLinLayer(nn.Module):

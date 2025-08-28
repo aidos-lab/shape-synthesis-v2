@@ -2,29 +2,51 @@ import matplotlib.pyplot as plt
 import torch
 from torch_geometric.datasets import QM9
 
+from src.datasets.qm9 import DataConfig, create_dataset, get_dataloaders
 
-# |%%--%%| <8zGKyynUTX|162BA2XY57>
+# |%%--%%| <8zGKyynUTX|s1pClpgs2y>
 
-# Download the full QM9 dataset.
-dataset = QM9(
-    root="data",
-    force_reload=False,
+config = DataConfig(
+    root="./data",
+    raw="./data/raw",
+    batch_size=64,
+    resolution=64,
+    use_diracs=False,
 )
 
-m = []
-r = []
-for i in range(len(dataset)):
-    x = dataset[i].pos
-    x_n = x - x.mean(axis=0)
-    m.append(x - x.mean(axis=0))
-    r.append(x_n.norm(dim=-1).max())
+create_dataset(config, dev=True, force_reload=False)
+dl, _ = get_dataloaders(config, dev=True)
 
-m = torch.vstack(m)
-r = torch.vstack(r)
+for (ect,) in dl:
+    break
 
 
-# |%%--%%| <162BA2XY57|QYoMCnrXGo>
+# |%%--%%| <s1pClpgs2y|efee6nBAMA>
 
-# r = m.norm(dim=-1)
-print(r.max())
-print(r.min())
+plt.imshow(ect[9].squeeze()[2].numpy())
+#
+# # |%%--%%| <efee6nBAMA|162BA2XY57>
+#
+# # Download the full QM9 dataset.
+# dataset = QM9(
+#     root="data",
+#     force_reload=False,
+# )
+#
+# m = []
+# r = []
+# for i in range(len(dataset)):
+#     x = dataset[i].pos
+#     x_n = x - x.mean(axis=0)
+#     m.append(x - x.mean(axis=0))
+#     r.append(x_n.norm(dim=-1).max())
+#
+# m = torch.vstack(m)
+# r = torch.vstack(r)
+#
+#
+# # |%%--%%| <162BA2XY57|QYoMCnrXGo>
+#
+# # r = m.norm(dim=-1)
+# print(r.max())
+# print(r.min())

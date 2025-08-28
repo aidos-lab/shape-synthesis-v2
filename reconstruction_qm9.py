@@ -15,7 +15,7 @@ torch.set_float32_matmul_precision("medium")
 
 #######################################################################
 np.random.seed(42)
-RESOLUTION = 150  # Abbreviated to R
+RESOLUTION = 128  # Abbreviated to R
 RADIUS = 1.0  # Abbreviated to r, fixed to 1 for now.
 SCALE = 200  # Fixed hyperparameter for now. Is sets the bandwidth for the dirac approximation.
 DEVICE = "cuda"  # Device to compute on.

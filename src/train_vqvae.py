@@ -47,14 +47,12 @@ def train(
             )
 
         for (ect,) in tqdm(dataloader):
-            breakpoint()
-            ect = ect[0]
 
             step_count += 1
 
             # Start adding the discrimminator after 1k steps.
             disc_scale_loss = 0
-            if step_count > 1000:
+            if step_count > 200:
                 disc_scale_loss = 1
 
             # Fetch autoencoders output(reconstructions)
@@ -117,7 +115,8 @@ def main(args):
     # Parse the args
     config_path = args.config_path
     compile: bool = args.compile
-    dev = args.dev
+    dev: bool = args.dev
+    resume: bool = args.resume
 
     config, _ = load_config(config_path)
 
@@ -126,7 +125,7 @@ def main(args):
     ##########################################################
 
     if dev:
-        config.trainer.epochs = 2
+        config.trainer.epochs = 100
         config.trainer.checkpoint_dir = "trained_models_dev"
 
     ##########################################################
@@ -149,8 +148,16 @@ def main(args):
 
     # Create the model and dataset.
     model = VQVAE(config.vae)
+
+    if resume:
+        state = {"model": model}
+        fabric.load("trained_models_dev/vqvae.ckpt", state)
+
     if compile:
         model = torch.compile(model)
+
+    model.train()
+
     optimizer_g = Adam(
         model.parameters(),
         lr=config.trainer.lr,
@@ -221,6 +228,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--dev",
+        default=False,
+        action="store_true",
+        help="Run a small subset.",
+    )
+    parser.add_argument(
+        "--resume",
         default=False,
         action="store_true",
         help="Run a small subset.",

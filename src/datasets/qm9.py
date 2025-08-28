@@ -18,6 +18,7 @@ class DataConfig:
     raw: str
     batch_size: int
     resolution: int
+    use_diracs: bool
 
 
 def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
@@ -49,14 +50,16 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
         num_thetas=config.resolution,
         resolution=config.resolution,
         r=1,
-        scale=500,
+        scale=200,
         ambient_dimension=3,
         ect_type="points",
         seed=129,
         normalized=True,
         structured_directions=True,
         max_channels=5,
+        use_diracs=config.use_diracs,
     )
+
     ect_tr = EctChannelsTransform(ect_config).to(device="cuda")
     res = []
     pts = []
@@ -76,10 +79,13 @@ def create_dataset(config: DataConfig, dev: bool = False, force_reload=False):
             index=torch.zeros(len(x), dtype=torch.int64).cuda(),
             channels=z.cuda(),
         ).cpu()[:, 1:4, :, :]
+
+        # Move to [-1,1]
+        ects = 2 * ects - 1
         res.append(ects)
         pts.append(x)
         batch.append(data.batch)
-        if dev and idx == 8:
+        if dev and idx == 1000:
             break
 
     transformed = torch.vstack(res)
@@ -133,6 +139,12 @@ def get_dataloaders(config: DataConfig, dev: bool = False):
 
 
 if __name__ == "__main__":
-    config = DataConfig(root="./data", raw="./data/raw", batch_size=64, resolution=64)
+    config = DataConfig(
+        root="./data",
+        raw="./data/raw",
+        batch_size=64,
+        resolution=64,
+        use_diracs=True,
+    )
     create_dataset(config, dev=True, force_reload=False)
-    # create_dataset(config, dev=False, force_reload=False)
+    create_dataset(config, dev=False, force_reload=True)

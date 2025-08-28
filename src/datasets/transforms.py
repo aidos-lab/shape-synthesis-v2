@@ -11,8 +11,7 @@ from dect.directions import generate_multiview_directions, generate_uniform_dire
 
 # from dect.ect import compute_ect_channels
 from dect.nn import EctConfig
-from torch import nn
-from torch import Tensor
+from torch import Tensor, nn
 
 
 def compute_ect_channels(
@@ -25,6 +24,7 @@ def compute_ect_channels(
     index: Tensor | None = None,
     max_channels: int | None = None,
     normalize: bool = False,
+    use_diracs: bool = False,
 ):
     """
     Allows for channels within the point cloud to separated in different
@@ -63,6 +63,8 @@ def compute_ect_channels(
     nh = x @ v
     lin = torch.linspace(-radius, radius, resolution, device=x.device).view(-1, 1, 1)
     ecc = torch.nn.functional.sigmoid(scale * torch.sub(lin, nh))
+    if use_diracs:
+        ecc = ecc * (1 - ecc)
     output = torch.zeros(
         size=out_shape,
         device=nh.device,
@@ -83,6 +85,7 @@ class EctTransformConfig(EctConfig):
     resolution: int
     structured_directions: bool
     max_channels: int
+    use_diracs: bool
 
 
 def get_transform(config: EctTransformConfig):
@@ -116,7 +119,8 @@ class EctChannelsTransform(nn.Module):
             resolution=self.config.resolution,
             scale=self.config.scale,
             max_channels=self.config.max_channels,
-            normalize=False,
+            use_diracs=self.config.use_diracs,
+            normalize=False,  # We do this in the forward.
         )
 
     def forward(self, x, index, channels):

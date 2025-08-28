@@ -13,12 +13,12 @@ trainer:
   accelerator: cuda
 
 transform: 
-  resolution: 64
-  num_thetas: 64
+  resolution: 128
+  num_thetas: 128
   structured_directions: True
   ambient_dimension: 3
-  max_channels: 5
-  scale: 500
+  max_channels: 3
+  scale: 200
   r: 1
 
 noise_scheduler:

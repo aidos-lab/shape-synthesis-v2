@@ -21,13 +21,11 @@ torch.set_float32_matmul_precision("medium")
 def evaluate(
     config,
     dataloader,
-    transform,
     model,
 ):
     model.eval()
 
-    for ect in tqdm(dataloader):
-        ect = ect[0][:, :3, :, :]
+    for (ect,) in tqdm(dataloader):
         # Fetch autoencoders output(reconstructions)
         recon, _, quantize_losses = model(ect)
         offset = 8
@@ -41,10 +39,7 @@ def evaluate(
             torch.clamp(recon[offset : offset + sample_size], -1.0, 1.0).detach().cpu()
         )
         save_output = (save_output + 1) / 2
-        save_output = save_output[:, :3, :, :]
-        save_input = (
-            ((ect[offset : offset + sample_size][:, :3, :, :] + 1) / 2).detach().cpu()
-        )
+        save_input = ((ect[offset : offset + sample_size] + 1) / 2).detach().cpu()
 
         grid = make_grid(torch.cat([save_input, save_output], dim=0), nrow=sample_size)
         img = torchvision.transforms.ToPILImage()(grid)
@@ -61,7 +56,7 @@ def main(args):
     dev = args.dev
 
     config, _ = load_config(config_path)
-    seed_everything(config.train.seed)
+    seed_everything(config.trainer.seed)
 
     ###################################################################
     ### Setup models
@@ -70,11 +65,11 @@ def main(args):
     _, dataloader = get_dataloaders(config.data, dev=dev)
     dataloader = fabric.setup_dataloaders(dataloader)
 
-    # Transforms an ect to an image at runtime.
-    transform = get_transform(config.transform)
-    if compile:
-        transform = torch.compile(transform)
-    transform = fabric.setup_module(transform)
+    # # Transforms an ect to an image at runtime.
+    # transform = get_transform(config.transform)
+    # if compile:
+    #     transform = torch.compile(transform)
+    # transform = fabric.setup_module(transform)
 
     # Load the model
     model = VQVAE(config.vae).to("cuda")
@@ -83,6 +78,7 @@ def main(args):
 
     state = {"model": model}
     fabric.load("trained_models/vqvae.ckpt", state)
+    model.eval()
 
     ##########################################################
     ### Start the evaluation.
@@ -91,7 +87,6 @@ def main(args):
     evaluate(
         config,
         dataloader,
-        transform,
         model,
     )
 
@@ -99,7 +94,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Arguments for vq vae training")
     parser.add_argument(
-        "--config", dest="config_path", default="config/qm9.yaml", type=str
+        "--config", dest="config_path", default="config/vqvae_qm9.yaml", type=str
     )
     parser.add_argument(
         "--compile", default=False, action="store_true", help="Compile all the models"
