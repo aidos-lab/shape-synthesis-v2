@@ -23,17 +23,19 @@ def evaluate(
     dataloader,
     transform,
     model,
+    num_samples=1,
 ):
     model.eval()
-
+    i=0
     for ect in tqdm(dataloader):
+        i += 1
         ect = ect[0][:, :3, :, :]
         # Fetch autoencoders output(reconstructions)
         recon, _, quantize_losses = model(ect)
         offset = 8
 
-        torch.save(recon.detach().cpu(), "results/recon.pt")
-        torch.save(ect.cpu(), "results/ect.pt")
+        torch.save(recon.detach().cpu(), f"results/recon_{i}.pt")
+        torch.save(ect.cpu(), f"results/ect_{i}.pt")
         # torch.save(pc.cpu(), "results/pc.pt")
 
         sample_size = min(8, recon.shape[0])
@@ -48,10 +50,10 @@ def evaluate(
 
         grid = make_grid(torch.cat([save_input, save_output], dim=0), nrow=sample_size)
         img = torchvision.transforms.ToPILImage()(grid)
-        img.save("results/ect_recon.png")
+        img.save(f"results/ect_recon_{i}.png")
         img.close()
-        break
-
+        if i == num_samples:
+            break
 
 def main(args):
     fabric = Fabric()
@@ -59,6 +61,7 @@ def main(args):
     config_path = args.config_path
     compile: bool = args.compile
     dev = args.dev
+    num_samples = args.num_samples
 
     config, _ = load_config(config_path)
     seed_everything(config.train.seed)
@@ -93,6 +96,7 @@ def main(args):
         dataloader,
         transform,
         model,
+        num_samples,
     )
 
 
@@ -106,6 +110,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--dev", default=False, action="store_true", help="Run a small subset."
+    )
+    parser.add_argument(
+        "--num-samples", default=1, type=int, help="Number of samples to evaluate."
     )
     args = parser.parse_args()
     main(args)
