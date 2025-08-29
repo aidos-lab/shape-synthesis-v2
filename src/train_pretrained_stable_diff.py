@@ -82,16 +82,14 @@ def main():
     ap.add_argument("--xformers", action="store_true", help="enable memory-efficient attention if installed")
     ap.add_argument("--val-limit", type=int, default=16, help="use up to N val samples for quick TB previews")
 
-    # ===== VAE decoder LoRA adaptation (optional alternate mode) =====
-    ap.add_argument("--vae-lora", action="store_true", help="If set, train VAE decoder with LoRA on reconstruction loss instead of UNet noise prediction.")
-    ap.add_argument("--vae-lora-rank", type=int, default=8, help="LoRA rank (r) for Conv2d adapters in VAE decoder")
-    ap.add_argument("--vae-lora-alpha", type=int, default=8, help="LoRA alpha (scaling) for VAE decoder")
-    ap.add_argument("--vae-lora-dropout", type=float, default=0.0, help="LoRA dropout probability")
-    ap.add_argument("--vae-lr", type=float, default=1e-5, help="Learning rate when training VAE LoRA")
-    ap.add_argument("--vae-steps", type=int, default=20000, help="Max steps for VAE LoRA training")
-    ap.add_argument("--vae-log-every", type=int, default=200, help="Logging interval for VAE LoRA mode")
-    ap.add_argument("--l1-weight", type=float, default=1.0, help="Weight for L1 recon loss in VAE LoRA mode")
-    ap.add_argument("--ssim-weight", type=float, default=0.0, help="Weight for SSIM term (1-SSIM) in VAE LoRA mode")
+    # ===== VAE decoder fine-tuning (reconstruction mode; no LoRA) =====
+    ap.add_argument("--vae-decoder-ft", action="store_true", help="If set, train VAE decoder on reconstruction loss (encoder frozen), instead of UNet noise prediction.")
+    ap.add_argument("--vae-lr", type=float, default=1e-5, help="Learning rate when training VAE decoder")
+    ap.add_argument("--vae-steps", type=int, default=20000, help="Max steps for VAE decoder training")
+    ap.add_argument("--vae-log-every", type=int, default=200, help="Logging interval for VAE decoder mode")
+    ap.add_argument("--l1-weight", type=float, default=1.0, help="Weight for L1 recon loss in VAE decoder mode")
+    ap.add_argument("--ssim-weight", type=float, default=0.0, help="Weight for SSIM term (1-SSIM) in VAE decoder mode")
+    ap.add_argument("--ema-decay", type=float, default=0.999, help="EMA decay for VAE decoder weights (0 disables EMA)")
 
     args = ap.parse_args()
 
@@ -163,52 +161,7 @@ def main():
             lat = vae.encode((x * 2 - 1)).latent_dist.sample()
         return lat * 0.18215
 
-    # ===== LoRA and SSIM helpers for VAE reconstruction mode =====
-    class LoRAConv(nn.Module):
-        def __init__(self, in_ch, out_ch, r=8, alpha=8, p=0.0):
-            super().__init__()
-            self.r = r
-            self.alpha = alpha
-            self.scale = alpha / max(1, r)
-            self.lora_A = nn.Conv2d(in_ch, r, kernel_size=1, bias=False)
-            self.lora_B = nn.Conv2d(r, out_ch, kernel_size=1, bias=False)
-            nn.init.kaiming_uniform_(self.lora_A.weight, a=math.sqrt(5))
-            nn.init.zeros_(self.lora_B.weight)
-            self.dropout = nn.Dropout2d(p) if p > 0 else nn.Identity()
-        def forward(self, x):
-            return self.lora_B(self.lora_A(self.dropout(x))) * self.scale
-
-    def attach_lora_to_vae_decoder(vae: AutoencoderKL, r=8, alpha=8, p=0.0):
-        loras = {}
-        for name, module in vae.decoder.named_modules():
-            if isinstance(module, nn.Conv2d):
-                l = LoRAConv(module.in_channels, module.out_channels, r=r, alpha=alpha, p=p)
-                setattr(module, 'lora', l)
-                orig_forward = module.forward
-                def _patched_forward(x, _orig=orig_forward, _l=l):
-                    return _orig(x) + _l(x)
-                module.forward = _patched_forward
-                loras[f"decoder.{name}.lora"] = l
-        return loras
-
-    def lora_parameters(vae: AutoencoderKL):
-        params = []
-        for m in vae.modules():
-            if hasattr(m, 'lora') and isinstance(m.lora, LoRAConv):
-                params += list(m.lora.parameters())
-        return params
-
-    def export_lora_safetensors(vae: AutoencoderKL, path: str):
-        tensors = {}
-        for name, module in vae.named_modules():
-            if hasattr(module, 'lora') and isinstance(module.lora, LoRAConv):
-                prefix = f"{name}.lora."
-                tensors[prefix + "lora_A.weight"] = module.lora.lora_A.weight.detach().cpu()
-                tensors[prefix + "lora_B.weight"] = module.lora.lora_B.weight.detach().cpu()
-                # store scale as a 0-dim tensor for convenience
-                tensors[prefix + "scale"] = torch.tensor(module.lora.scale)
-        _safe_save(tensors, path)
-
+    # ===== SSIM helper for reconstruction mode =====
     # Minimal SSIM (on [0,1]) for an optional perceptual term
     def _gaussian_window(window_size: int = 11, sigma: float = 1.5, device='cpu'):
         coords = torch.arange(window_size, device=device).float() - (window_size - 1)/2
@@ -239,7 +192,7 @@ def main():
         return ssim_map.mean(dim=[1,2,3])
 
     # ---------- Training ----------
-    if not args.vae_lora:
+    if not args.vae_decoder_ft:
         # ===== Original UNet noise-prediction training =====
         step = 0
         while step < args.max_steps:
@@ -300,16 +253,26 @@ def main():
         writer.close()
         print("Saved UNet to", args.out_dir)
     else:
-        # ===== VAE decoder LoRA reconstruction training =====
+        # ===== VAE decoder reconstruction training (encoder frozen) =====
+        # Freeze encoder and text/UNet; unfreeze decoder only
+        vae.encoder.requires_grad_(False)
+        for p in vae.decoder.parameters():
+            p.requires_grad = True
         vae.train()
-        # Freeze everything except decoder LoRA params
-        for p in vae.parameters():
-            p.requires_grad = False
-        loras = attach_lora_to_vae_decoder(vae, r=args.vae_lora_rank, alpha=args.vae_lora_alpha, p=args.vae_lora_dropout)
-        params = lora_parameters(vae)
-        if not params:
-            raise RuntimeError("No LoRA parameters found on VAE decoder")
-        opt = torch.optim.AdamW(params, lr=args.vae_lr, betas=(0.9, 0.999), weight_decay=0.0)
+
+        # Optional EMA for stability
+        use_ema = args.ema_decay > 0 and args.ema_decay < 1
+        if use_ema:
+            import copy
+            ema_decoder = copy.deepcopy(vae.decoder).to(device)
+            for p in ema_decoder.parameters():
+                p.requires_grad = False
+            def ema_update(model, ema_model, decay):
+                with torch.no_grad():
+                    for p, p_ema in zip(model.parameters(), ema_model.parameters()):
+                        p_ema.data.mul_(decay).add_(p.data, alpha=1.0 - decay)
+
+        opt_dec = torch.optim.AdamW(vae.decoder.parameters(), lr=args.vae_lr, betas=(0.9, 0.999), weight_decay=0.0)
 
         step = 0
         while step < args.vae_steps:
@@ -319,8 +282,9 @@ def main():
                 x = x.to(device, non_blocking=True)  # [B,3,H,W] in [0,1]
                 with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=args.fp16):
                     x_in = x * 2 - 1
-                    enc = vae.encode(x_in)
-                    z   = enc.latent_dist.mode() * 0.18215
+                    with torch.no_grad():
+                        enc = vae.encode(x_in)
+                        z   = enc.latent_dist.mode() * 0.18215
                     xhat = vae.decode(z / 0.18215).sample
                     xhat01 = (xhat * 0.5 + 0.5).clamp(0,1)
                     l1 = F.l1_loss(xhat01, x)
@@ -329,31 +293,37 @@ def main():
                         loss = args.l1_weight * l1 + args.ssim_weight * (1 - ssim.mean())
                     else:
                         loss = args.l1_weight * l1
-                opt.zero_grad(set_to_none=True)
+
+                opt_dec.zero_grad(set_to_none=True)
                 loss.backward()
-                opt.step()
+                opt_dec.step()
+
+                if use_ema:
+                    ema_update(vae.decoder, ema_decoder, args.ema_decay)
 
                 if step % args.vae_log_every == 0:
-                    writer.add_scalar("vae_lora/loss", float(loss.detach().cpu()), step)
-                    writer.add_scalar("vae_lora/l1", float(l1.detach().cpu()), step)
+                    writer.add_scalar("vae_decoder/loss", float(loss.detach().cpu()), step)
+                    writer.add_scalar("vae_decoder/l1", float(l1.detach().cpu()), step)
                     if args.ssim_weight > 0:
-                        writer.add_scalar("vae_lora/ssim", float(ssim.mean().detach().cpu()), step)
-                    # preview
+                        writer.add_scalar("vae_decoder/ssim", float(ssim.mean().detach().cpu()), step)
                     grid_in  = make_grid(x.detach().cpu(), nrow=4)
                     grid_out = make_grid(xhat01.detach().cpu(), nrow=4)
-                    writer.add_image("vae_lora/input", grid_in, step)
-                    writer.add_image("vae_lora/recon", grid_out, step)
+                    writer.add_image("vae_decoder/input", grid_in, step)
+                    writer.add_image("vae_decoder/recon", grid_out, step)
 
                 step += 1
                 if step >= args.vae_steps:
                     break
 
-        # Save LoRA weights
+        # Save fine-tuned VAE (optionally swap in EMA weights before saving)
         os.makedirs(args.out_dir, exist_ok=True)
-        lora_path = os.path.join(args.out_dir, "vae_decoder_lora.safetensors")
-        export_lora_safetensors(vae, lora_path)
+        if use_ema:
+            # Copy EMA weights into the live decoder before saving
+            for p, p_ema in zip(vae.decoder.parameters(), ema_decoder.parameters()):
+                p.data.copy_(p_ema.data)
+        vae.save_pretrained(args.out_dir)
         writer.close()
-        print(f"Saved VAE decoder LoRA to {lora_path}")
+        print(f"Saved VAE (decoder-finetuned) to {args.out_dir}")
 
 
 if __name__ == "__main__":
