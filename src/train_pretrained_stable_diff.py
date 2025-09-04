@@ -280,7 +280,7 @@ def main():
                 if step >= args.vae_steps:
                     break
                 x = x.to(device, non_blocking=True)  # [B,3,H,W] in [0,1]
-                with torch.autocast(device_type="cuda", dtype=torch.float16, enabled=args.fp16):
+                with torch.autocast(device_type="cuda", dtype=torch.bfloat16, enabled=args.fp16):
                     x_in = x * 2 - 1
                     with torch.no_grad():
                         enc = vae.encode(x_in)
